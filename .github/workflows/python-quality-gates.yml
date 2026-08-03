@@ -45,5 +45,5 @@ jobs:
 
       - name: Run pipeline tests
         env:
-          PYTHONPATH: services/pipeline
+          PYTHONPATH: services/pipeline/src
         run: python -m pytest services/pipeline/tests
