@@ -14,13 +14,13 @@ Air quality data for different cities exists and is accessible (e.g., through th
 
 ### What the ETL stages do
 
-- **Extract** — calls the OpenWeather geocoding and air pollution endpoints for each configured city and stores the raw responses as-is.
+- **Extract** — calls the OpenWeather geocoding and air pollution endpoints for each configured city and stores the raw responses as-is in PostgreSQL, so they can be re-inspected later without making another API call.
 - **Transform** — parses these raw responses, removes duplicate or invalid records, normalizes timestamps to a consistent format, and calculates any derived metrics needed.
-- **Load** — writes the resulting cleaned ("gold") dataset to a location the dashboard can read from.
+- **Load** — writes the resulting cleaned ("gold") dataset to PostgreSQL, which is the data source for the dashboard.
 
 ### How this supports the dashboard
 
-By the time the dashboard needs the data, all the prep work is already done: it simply reads the ready-made clean dataset instead of calling the API and parsing raw JSON on the fly. This keeps the dashboard fast and reliable, and keeps all the data-cleaning logic centralized and easy to test separately from the UI.
+By the time the dashboard needs the data, all the prep work is already done: the React frontend requests the data from our Python API, which queries the prepared tables in PostgreSQL. As a result, no OpenWeather API calls or JSON parsing occur during the request. This keeps the dashboard fast and reliable, and keeps all the data-cleaning logic centralized and easy to test separately from the UI.
 
 ## 2. Target Architecture
 
