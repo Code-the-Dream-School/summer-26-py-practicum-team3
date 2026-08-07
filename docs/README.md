@@ -14,6 +14,7 @@ Use these docs when you want to install, run, debug, or validate the project loc
 - `setup/docker_and_compose_walkthrough.md`
 - `setup/github_quality_gates_setup.md`
 - `setup/dashboard_azure_deployment.md`
+- `setup/linting_and_type_checking_guide.md`
 
 ## Collaboration
 
@@ -22,6 +23,7 @@ Use these docs when onboarding to the repo, learning the workflow, reviewing pul
 - `collaboration/github_feature_branch_pr_guide.md`
 - `collaboration/pr_review_best_practices.md`
 - `collaboration/what_is_a_data_pipeline.md`
+- `collaboration/team_working_agreement.md`
 - `collaboration/Postman Installation & Usage Guide.pdf`
 
 ## Architecture
