@@ -73,8 +73,10 @@ Note: `services/pipeline/tests/conftest.py` inserts `services/pipeline/src` onto
 pytest from `services/pipeline` (e.g. `cd services/pipeline && python -m pytest tests`) also works without
 setting `PYTHONPATH` explicitly.
 
-There is no linter/formatter configured yet (no `pyproject.toml`, `ruff`/`black` config, etc.) — don't
-assume one when suggesting commands.
+There is no formatter or lint config file yet (no `pyproject.toml`, `ruff.toml`, `pyrightconfig.json`,
+etc.) — ruff/pyright currently run with their default settings via CI (see below). Don't assume a config
+file when suggesting commands. `ruff` and `pyright` are listed in `requirements.txt`; see
+`docs/setup/linting_and_type_checking_guide.md` for local install/run instructions.
 
 ## CI (GitHub Actions)
 
@@ -84,6 +86,12 @@ Two required checks run on every PR into `main` (`.github/workflows/`):
   runs `pytest services/pipeline/tests` with `PYTHONPATH=services/pipeline/src`.
 - **`air-ticket-check.yml`** — fails the PR unless the PR title matches `AIR-[0-9]+` (e.g. `AIR-10 ...`).
   Always include the ticket id when naming a PR or branch.
+
+One advisory-only check also runs and never blocks merging:
+
+- **`lint-checks.yml`** — runs `ruff check` and `pyright` and surfaces findings as inline warning
+  annotations on the PR diff (via `continue-on-error`, so it always reports success). Treat its warnings
+  as review feedback for the student to act on themselves, not as something Claude should fix directly.
 
 ## Architecture
 
