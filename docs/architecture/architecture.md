@@ -24,4 +24,30 @@ By the time the dashboard needs the data, all the prep work is already done: the
 
 ## 2. Target Architecture
 
-_Diagram and description to be added._
+**Plan:** _This architecture may change as the team learns more_
+
+```text
+City Input / Configuration
+	↓
+Geocoding (City → Latitude/Longitude)
+	↓
+OpenWeather API
+	↓
+Data Extraction
+	↓
+Data Transformation
+	↓
+PostgreSQL
+	↓
+Python Dashboard API
+	↓
+React Frontend
+```
+
+**_Optional Extension:_**
+
+```text
+Scheduled / Automated Batch Runs
+	↓
+Data Extraction
+```
