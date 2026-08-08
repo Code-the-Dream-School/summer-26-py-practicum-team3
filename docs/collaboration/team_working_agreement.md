@@ -12,7 +12,7 @@ responsibilities, and keeps work moving during the practicum. See
 ## 1. Communication
 
 - Primary channel: Slack, `#summer26-python-practicum-team3`.
-- Weekly team meeting: Saturdays at 4:00pm ET.
+- Weekly team meeting: Saturdays at 4:30pm ET.
 - Post a work update in-channel whenever work moves state (started/blocked/ready for review) or whenever
   a PR needs review.
 
