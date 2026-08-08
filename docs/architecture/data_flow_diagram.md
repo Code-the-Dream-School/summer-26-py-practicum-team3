@@ -6,7 +6,9 @@ This document describes the expected behavior of the City Air Tracker pipeline e
 
 This is a design plan, not a completed implementation. The pipeline does not run yet. The order of operations follows the `run_pipeline_job()` scaffolding in `services/pipeline/src/pipeline/orchestration/__init__.py`, and the documentation should remain aligned with the eventual implementation.
 
-Every stage reads and writes PostgreSQL. Table names below are the ones we plan to use.
+PostgreSQL is the main store for this plan, and every stage below reads or writes it. Table names are the ones we plan to use.
+
+It may not stay the only store. The `PublishResult` type in the orchestration scaffolding carries `gold_path` and `azure_blob_path` next to `postgres_table`, so the load stage may also write a Parquet copy and push it to Azure. That work is not built yet and is out of scope here. This doc should be updated when it lands.
 
 ## Flow at a glance
 
@@ -91,6 +93,8 @@ The city input contract defines the fields on `cities`.
 
    Keeping raw responses allows the gold dataset to be rebuilt later without making additional API requests.
 
+   Cities are processed one at a time. Sequential extract keeps the order of API calls easy to follow and keeps us comfortably inside the OpenWeather rate limit while the city list is short. If the list grows enough that extract becomes slow, running cities in parallel is worth looking at in a later sprint.
+
 6. **Transform:** The transform stage reads from `air_pollution_raw` and builds the gold dataset in memory as a pandas DataFrame.
 
    The transformation process:
@@ -104,6 +108,8 @@ The city input contract defines the fields on `cities`.
    No persistent writes happen during this stage, making it easier to test independently.
 
 7. **Load:** The load stage writes the completed gold dataset to `air_pollution_gold`. This is the table the dashboard API reads from.
+
+   Postgres is the primary target, not necessarily the only one. If the Parquet and Azure outputs sketched in `PublishResult` get built, they will come out of this same stage. The gold table is what the rest of this document assumes.
 
 8. **Close out the run:** `pipeline_runs` is updated to succeeded, recording the city count, raw response count, and gold row count.
 
@@ -125,7 +131,7 @@ Configuration enters in one place, at step 1, and reaches the rest of the pipeli
 | Run setup | Nothing | `pipeline_runs` |
 | Extract | `cities`; `geocoding_cache`; OpenWeather geocoding and history endpoints | `air_pollution_raw`; new entries in `geocoding_cache` |
 | Transform | `air_pollution_raw` | Nothing |
-| Load | The in-memory gold table | `air_pollution_gold` |
+| Load | The in-memory gold table | `air_pollution_gold` (Parquet and Azure copies are possible later, not planned here) |
 | Run close-out | Nothing | Status update on `pipeline_runs` |
 
 Only the extract stage communicates with external APIs, and only the load stage publishes the final dataset.
