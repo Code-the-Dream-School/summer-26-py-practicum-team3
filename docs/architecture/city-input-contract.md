@@ -22,14 +22,14 @@ If US-only should be enforced, that will need to be added as an explicit rule in
 
 ### Required Fields
 
-| Field    | Type         | Required | Description                                                                                                                                                                                                                                                                                     |
-|----------|--------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `city_name` | string | Yes      | Common name of the city, as it would be searched (e.g. "Portland"). Must not be empty or whitespace-only. Required for geocoding.                                                                                                                                                               |
-| `country_code`| string | Yes      | ISO 3166-1 alpha-2 country code (e.g. "US"). Used to disambiguate cities that share a name across countries.                                                                                                                                                                                    |
-| `state_code` | string | No       | ISO 3166-2 state/province/region code (e.g. "CA") when applicable. Optional for countries without states.                                                                                                                                                                                       |
-| `city_id` | string | Yes      | A short, stable, unique identifier for this city within the configuration (e.g., `us-portland-or`). Used internally throughout the pipeline (raw storage, transform, gold dataset) to track the city independently of how its name or geocoded coordinates might change. See sity format below. |
-| `timezone` | string | Yes      | IANA format (e.g. "America/Los_Angeles"). Used later to normalize timestamps in pollution data.                                                                                                                                                                                                 |
-| `active` | boolean | Yes      | Indicates whether the pipeline should include this city in extraction runs. *See Rule 5 — this field has a default and is not rejected when missing, unlike other required fields.                                                                                                                                                                                                                    |
+| Field    | Type         | Required | Description                                                                                                                                                                                                                                                                                          |
+|----------|--------------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `city_name` | string | Yes      | Common name of the city, as it would be searched (e.g. "Portland"). Must not be empty or whitespace-only. Required for geocoding.                                                                                                                                                                    |
+| `country_code`| string | Yes      | ISO 3166-1 alpha-2 country code (e.g. "US"). Used to disambiguate cities that share a name across countries.                                                                                                                                                                                         |
+| `state_code` | string | No       | ISO 3166-2 state/province/region code (e.g. "CA") when applicable. Optional for countries without states.                                                                                                                                                                                            |
+| `city_id` | string | Yes      | A short, stable, unique identifier for this city within the configuration (e.g., `us-portland-or`). Used internally throughout the pipeline (raw storage, transform, gold dataset) to track the city independently of how its name or geocoded coordinates might change. See `city_id` Format below. |
+| `timezone` | string | Yes      | IANA format (e.g. "America/Los_Angeles"). Used later to normalize timestamps in pollution data.                                                                                                                                                                                                      |
+| `active` | boolean | Yes      | Indicates whether the pipeline should include this city in extraction runs. Must be explicitly set to `true` or `false` on every entry.                                                                                                                                                              |
 
 ### Field notes
 
@@ -49,8 +49,11 @@ If US-only should be enforced, that will need to be added as an explicit rule in
   been decided yet — this contract only guarantees the field is present and valid on
   the city entry, not when or where it gets applied.
 - **`active`** controls whether a city is picked up by an extraction run without
-  requiring the entry to be deleted from the configuration. Unlike the other required
-  fields, a missing `active` does not invalidate the entry — see Rule 5.
+  requiring the entry to be deleted from the configuration — see Rule 5.
+
+  > **Note:** `active` is required with no default so that adding a city always means an explicit decision, not an implicit one. This matters even for bulk import: 
+  a default would let a single bad import script silently flip many cities to active (or inactive) at once, 
+  burning API quota and populating the dashboard with entries no one deliberately chose. 
 
 ### Fields explicitly not part of this contract
 
@@ -105,7 +108,7 @@ Examples:
 ## Rules for Missing or Invalid Values
 
 ### 1. Required fields
-- **Missing `city_name`, `country_code`, `city_id` `timezone`, or `active` ** 
+- **Missing `city_name`, `country_code`, `city_id`, `timezone`, or `active` ** 
    → The entry is invalid. It must be rejected and excluded from the run. It must not be
    silently skipped — the rejection is logged with the entry's position/index in the
    configuration so it can be found and fixed.
@@ -131,7 +134,7 @@ Examples:
 
 ### 5. Active flag
 - **Missing `active`** 
-  → The entry is defaulted to true  
+  → The entry is invalid and is rejected, same as Rule 1.
 - **Invalid `active` (not boolean)**  
   → The entry is rejected.
 
