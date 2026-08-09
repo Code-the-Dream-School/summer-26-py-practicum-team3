@@ -26,28 +26,41 @@ By the time the dashboard needs the data, all the prep work is already done: the
 
 **Plan:** _This architecture may change as the team learns more_
 
-```text
-City Input / Configuration
-	↓
-Geocoding (City → Latitude/Longitude)
-	↓
-OpenWeather API
-	↓
-Data Extraction
-	↓
-Data Transformation
-	↓
-PostgreSQL
-	↓
-Python Dashboard API
-	↓
-React Frontend
-```
+```mermaid
+flowchart TD
+	A["<b>City Input / Configuration + Geocoding</b><br/>Provides the cities to track and converts city names to latitude / longitude"]
 
-**_Optional Extension:_**
+	B["<b>Data Extraction</b><br/>Retrieves air pollution data from OpenWeather API"]
 
-```text
-Scheduled / Automated Batch Runs
-	↓
-Data Extraction
+	C["<b>Data Transformation</b><br/>Cleans, normalizes, and prepares the extracted data for storage"]
+
+	D["<b>PostgreSQL</b><br/>Stores city, pipeline, raw, and prepared air quality data"]
+
+	E["<b>Python Dashboard API</b><br/>Queries prepared data from PostgreSQL and returns it to the frontend"]
+
+	F["<b>React Frontend</b><br/>Displays city air quality data through the dashboard"]
+
+    G["<b>Optional Extension — Dynamic City Search</b><br/>Dynamic city search using the geocoding API<br/>Allows cities beyond the configured list"]
+
+A --> B
+B --> C
+C --> D
+D -->|"Query prepared data"| E
+E -->|"HTTP / JSON"| F
+
+G -.->|"Triggers"| B
+
+classDef input fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e
+classDef process fill:#f3f4f6,stroke:#6b7280,stroke-width:2px,color:#111827
+classDef database fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
+classDef api fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f
+classDef frontend fill:#fce7f3,stroke:#db2777,stroke-width:2px,color:#831843
+classDef optional fill:#f5f3ff,stroke:#7c3aed,stroke-width:2px,stroke-dasharray:5 5,color:#4c1d95
+
+class A input
+class B,C process
+class D database
+class E api
+class F frontend
+class G optional
 ```
