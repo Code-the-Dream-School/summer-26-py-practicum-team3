@@ -40,7 +40,7 @@ flowchart TD
 
 	F["<b>React Frontend</b><br/>Displays city air quality data through the dashboard"]
 
-    G["<b>Optional Extension — Dynamic City Search</b><br/>Dynamic city search using the geocoding API<br/>Allows cities beyond the configured list"]
+    G["<b>Optional Extension — Dynamic City Search</b><br/>Uses the geocoding API to allow searches beyond the configured city list"]
 
 A --> B
 B --> C
