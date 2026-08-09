@@ -28,21 +28,21 @@ By the time the dashboard needs the data, all the prep work is already done: the
 
 ```mermaid
 flowchart TD
-	A["<b>City Input / Configuration + Geocoding</b><br/>Provides the cities to track and converts city names to latitude / longitude"]
+	A["<**City Input / Configuration + Geocoding**<br>Provides the cities to track and converts city names to latitude / longitude"]
 
-	B["<b>Data Extraction</b><br/>Retrieves air pollution data from OpenWeather API"]
+	B["**Data Extraction**<br>Retrieves air pollution data from OpenWeather API"]
 
-	C["<b>PostgreSQL — Raw Data</b><br/>Stores raw API responses as received"]
+	C["**PostgreSQL — Raw Data**<br>Stores raw API responses as received"]
 
-	D["<b>Data Transformation</b><br/>Cleans, normalizes, and prepares the extracted data for storage"]
+	D["**Data Transformation**<br>Cleans, normalizes, and prepares the extracted data for storage"]
 
-	E["<b>PostgreSQL - Prepared Data </b><br/>Stores city, pipeline, raw, and prepared air quality data"]
+	E["**PostgreSQL - Prepared Data**<br>Stores city, pipeline, raw, and prepared air quality data"]
 
-	F["<b>Python Dashboard API</b><br/>Queries prepared data from PostgreSQL and returns it to the frontend"]
+	F["**Python Dashboard API**<br>Queries prepared data from PostgreSQL and returns it to the frontend"]
 
-	G["<b>React Frontend</b><br/>Displays city air quality data through the dashboard"]
+	G["**React Frontend**<br>Displays city air quality data through the dashboard"]
 
-    H["<b>Optional Extension — Dynamic City Search</b><br/>Uses the geocoding API to allow searches beyond the configured city list"]
+    H["**Optional Extension — Dynamic City Search**<br>Uses the geocoding API to allow searches beyond the configured city list"]
 
 A --> B
 B --> C
