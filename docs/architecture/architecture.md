@@ -32,23 +32,26 @@ flowchart TD
 
 	B["<b>Data Extraction</b><br/>Retrieves air pollution data from OpenWeather API"]
 
-	C["<b>Data Transformation</b><br/>Cleans, normalizes, and prepares the extracted data for storage"]
+	C["<b>PostgreSQL — Raw Data</b><br/>Stores raw API responses as received"]
 
-	D["<b>PostgreSQL</b><br/>Stores city, pipeline, raw, and prepared air quality data"]
+	D["<b>Data Transformation</b><br/>Cleans, normalizes, and prepares the extracted data for storage"]
 
-	E["<b>Python Dashboard API</b><br/>Queries prepared data from PostgreSQL and returns it to the frontend"]
+	E["<b>PostgreSQL - Prepared Data </b><br/>Stores city, pipeline, raw, and prepared air quality data"]
 
-	F["<b>React Frontend</b><br/>Displays city air quality data through the dashboard"]
+	F["<b>Python Dashboard API</b><br/>Queries prepared data from PostgreSQL and returns it to the frontend"]
 
-    G["<b>Optional Extension — Dynamic City Search</b><br/>Uses the geocoding API to allow searches beyond the configured city list"]
+	G["<b>React Frontend</b><br/>Displays city air quality data through the dashboard"]
+
+    H["<b>Optional Extension — Dynamic City Search</b><br/>Uses the geocoding API to allow searches beyond the configured city list"]
 
 A --> B
 B --> C
 C --> D
-D -->|"Query prepared data"| E
-E -->|"HTTP / JSON"| F
+D --> E
+E --> F
+F --> G
 
-G -.->|"Triggers"| B
+H -.-> A
 
 classDef input fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e
 classDef process fill:#f3f4f6,stroke:#6b7280,stroke-width:2px,color:#111827
@@ -58,9 +61,9 @@ classDef frontend fill:#fce7f3,stroke:#db2777,stroke-width:2px,color:#831843
 classDef optional fill:#f5f3ff,stroke:#7c3aed,stroke-width:2px,stroke-dasharray:5 5,color:#4c1d95
 
 class A input
-class B,C process
-class D database
-class E api
-class F frontend
-class G optional
+class B,D process
+class C,E database
+class F api
+class G frontend
+class H optional
 ```
