@@ -1,4 +1,8 @@
-"""OpenWeather Historical Air Pollution API extract client."""
+"""OpenWeather Historical Air Pollution API extract client.
+
+Provides functionality for fetching historical air pollution raw data
+and persisting unparsed raw API responses to disk.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +13,8 @@ from typing import Any
 
 import requests
 
+# NOTE: The 'pipeline.common.*' modules do not exist in 'main' yet.
+# Importing this module directly will raise ModuleNotFoundError until the common package is merged.
 from pipeline.common.config import settings
 from pipeline.common.logging import get_logger
 
@@ -53,13 +59,12 @@ def fetch_air_pollution_history(
     api_key: str | None = None,
     http_client: Any = None,
 ) -> RawAirPollutionRecord:
-    """Fetch historical air pollution data from OpenWeather API."""
-    # 1. Валидация аргументов в первую очередь
+    """Fetch historical air pollution data from OpenWeather API for a given location and window."""
     _validate_location(lat, lon)
     _validate_window(start, end)
 
-    # 2. Резолв API-ключа и клиента
     if api_key is None:
+        # Extract secret value if wrapped in SecretStr to prevent passing masked values ('**********') to the API
         api_key = (
             settings.openweather_api_key.get_secret_value()
             if hasattr(settings.openweather_api_key, "get_secret_value")
@@ -108,6 +113,9 @@ def fetch_air_pollution_history(
         )
 
     entries = payload.get("list", [])
+
+    # An empty 'list' field in a 200 OK response indicates no recorded measurements for the period,
+    # distinguishing missing data ("empty") from network/API execution failures ("error").
     status = "ok" if entries else "empty"
 
     return RawAirPollutionRecord(
@@ -167,7 +175,7 @@ def _request_history(
     except requests.RequestException as exc:
         raise OpenWeatherRequestError(f"Request to OpenWeather failed: {exc}") from exc
 
-    # Сохраняем сырой response.text БУКВАЛЬНО «как есть» ДО любых проверок статуса и парсинга JSON
+    # Save exact response text prior to validation and JSON parsing to preserve an unedited audit trail
     _save_raw_response(
         raw_dir=raw_dir,
         city=city,
