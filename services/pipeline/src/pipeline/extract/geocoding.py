@@ -1,23 +1,32 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import requests
+from pydantic import BaseModel, ValidationError
 
-from pipeline.config import settings
+from pipeline.common.config import settings
 
 logger = logging.getLogger(__name__)
 
 GEOCODING_URL = "https://api.openweathermap.org/geo/1.0/direct"
 
 
-@dataclass(frozen=True)
-class Coordinates:
+class Coordinates(BaseModel):
+    """Geographic coordinates and their source."""
+
     lat: float
     lon: float
-    source: str
+    source: Literal["geocoded", "fallback"]
+
+
+class GeocodingResult(BaseModel):
+    """Validated coordinates returned by the geocoding API."""
+
+    lat: float
+    lon: float
 
 
 FALLBACK_COORDINATES: dict[
@@ -36,6 +45,19 @@ def geocode_city(
     state: str | None = None,
     raw_dir: Path | None = None,
 ) -> Coordinates | None:
+    """Resolve a city's coordinates using the geocoding API and fallbacks.
+
+    Args:
+        city: City name to geocode.
+        country_code: ISO country code for the city.
+        state: Optional state or region used to narrow the geocoding query.
+        raw_dir: Optional directory where the raw geocoding API response
+            is saved.
+
+    Returns:
+        A Coordinates object with the source set to "geocoded" or "fallback",
+        or None if coordinates cannot be found from either source.
+    """
     try:
         response = requests.get(
             GEOCODING_URL,
@@ -66,9 +88,11 @@ def geocode_city(
             results = response.json()
 
             if results:
+                result = GeocodingResult.model_validate(results[0])
+
                 return Coordinates(
-                    lat=results[0]["lat"],
-                    lon=results[0]["lon"],
+                    lat=result.lat,
+                    lon=result.lon,
                     source="geocoded",
                 )
 
@@ -78,7 +102,12 @@ def geocode_city(
                 country_code,
             )
 
-    except (requests.RequestException, ValueError, KeyError) as exc:
+    except (
+        requests.RequestException,
+        ValueError,
+        KeyError,
+        ValidationError,
+    ) as exc:
         logger.warning(
             "Geocoding API request failed for %s, %s: %s",
             city,
