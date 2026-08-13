@@ -30,6 +30,21 @@ class City:
 
 
 def read_cities(path: Path | None) -> list[City]:
+    """Load and validate cities from a JSON configuration file.
+
+    Args:
+        path: Path to the cities JSON file. If None or the file does not
+            exist, a warning is logged and an empty list is returned.
+
+    Returns:
+        A list of validated City records. Invalid city entries are skipped
+        and logged, so the returned list may be shorter than the input or
+        empty.
+
+    Raises:
+        ValueError: If the JSON content is not a list or if duplicate
+            city_id values are found.
+    """
     if path is None:
         logger.warning("Cities input source is missing.")
         return []
