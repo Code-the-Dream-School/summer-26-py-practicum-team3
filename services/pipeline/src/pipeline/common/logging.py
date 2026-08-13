@@ -1,0 +1,59 @@
+"""Logging infrastructure module for structured pipeline logging."""
+
+from __future__ import annotations
+
+import logging
+import sys
+
+# Baseline set of standard LogRecord attributes to ignore when parsing extra fields.
+# Note: 'message' and 'asctime' are populated dynamically during Formatter.format() and must be added explicitly.
+_STANDARD_RECORD_ATTRS = (
+    set(logging.LogRecord("", 0, "", 0, "", (), None).__dict__.keys())
+    | {"message", "asctime"}
+)
+
+
+class ContextFormatter(logging.Formatter):
+    """Formatter that appends contextual 'extra' fields (e.g., run_id, pipeline_run_id)."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        base_msg = super().format(record)
+
+        # Extract only custom fields passed via extra={...}
+        extras = {
+            k: v
+            for k, v in record.__dict__.items()
+            if k not in _STANDARD_RECORD_ATTRS and not k.startswith("_")
+        }
+
+        if extras:
+            context_str = " ".join(f"{k}={v}" for k, v in extras.items())
+            return f"{base_msg} | {context_str}"
+
+        return base_msg
+
+
+def get_logger(name: str) -> logging.Logger:
+    """Configures and returns a standard logger instance supporting contextual extra fields."""
+    logger = logging.getLogger(name)
+
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = ContextFormatter(
+            fmt="[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
+        # Lazy import to ensure the logging module remains fully functional 
+        # even if settings parsing fails or config module is absent.
+        try:
+            from pipeline.common.config import settings
+            level_name = getattr(settings, "log_level", "INFO").upper()
+        except Exception:
+            level_name = "INFO"
+
+        logger.setLevel(getattr(logging, level_name, logging.INFO))
+
+    return logger
