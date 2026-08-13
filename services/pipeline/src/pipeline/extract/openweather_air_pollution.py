@@ -71,7 +71,7 @@ def fetch_air_pollution_history(
             else str(settings.openweather_api_key)
         )
 
-    client = http_client or requests
+    client = http_client if http_client is not None else requests
 
     try:
         payload = _request_history(
@@ -173,7 +173,10 @@ def _request_history(
             OPENWEATHER_HISTORY_URL, params=params, timeout=10
         )
     except requests.RequestException as exc:
-        raise OpenWeatherRequestError(f"Request to OpenWeather failed: {exc}") from exc
+        safe_msg = str(exc)
+        if api_key:
+            safe_msg = safe_msg.replace(api_key, "***")
+        raise OpenWeatherRequestError(f"Request to OpenWeather failed: {safe_msg}") from exc
 
     # Save exact response text prior to validation and JSON parsing to preserve an unedited audit trail
     _save_raw_response(
@@ -185,16 +188,26 @@ def _request_history(
     )
 
     if response.status_code != 200:
+        safe_body = response.text[:500]
+        if api_key:
+            safe_body = safe_body.replace(api_key, "***")
         raise OpenWeatherRequestError(
-            f"OpenWeather returned status {response.status_code}: {response.text[:500]}"
+            f"OpenWeather returned status {response.status_code}: {safe_body}"
         )
 
     try:
-        return response.json()
+        payload = response.json()
     except ValueError as exc:
         raise OpenWeatherRequestError(
             f"Invalid JSON response from OpenWeather: {exc}"
         ) from exc
+
+    if not isinstance(payload, dict):
+        raise OpenWeatherRequestError(
+            f"Expected JSON object from OpenWeather, got {type(payload).__name__}"
+        )
+
+    return payload
 
 
 def _save_raw_response(
