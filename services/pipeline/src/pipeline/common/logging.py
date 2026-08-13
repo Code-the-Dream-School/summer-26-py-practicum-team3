@@ -47,11 +47,11 @@ def get_logger(name: str) -> logging.Logger:
         logger.addHandler(handler)
 
         # Lazy import to ensure the logging module remains fully functional 
-        # even if settings parsing fails or config module is absent.
+        # regardless of any configuration or settings parsing errors.
         try:
             from pipeline.common.config import settings
             level_name = getattr(settings, "log_level", "INFO").upper()
-        except Exception:
+        except Exception:  # noqa: BLE001
             level_name = "INFO"
 
         logger.setLevel(getattr(logging, level_name, logging.INFO))
