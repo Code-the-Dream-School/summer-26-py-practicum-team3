@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import Literal
 
@@ -29,13 +30,43 @@ class GeocodingResult(BaseModel):
     lon: float
 
 
+def _normalize_name(value: str) -> str:
+    """Normalize a name for consistent fallback lookups."""
+    return re.sub(r"\s+", " ", value.strip().upper())
+
+
+def _normalize_city(city: str) -> str:
+    return _normalize_name(city)
+
+
+def _normalize_state(state: str | None) -> str | None:
+    if state is None:
+        return None
+
+    return _normalize_name(state)
+
+
+def _normalize_country(country_code: str) -> str:
+    return country_code.strip().upper()
+
+
+_RAW_FALLBACK_COORDINATES = [
+    ("Las Vegas", None, "US", 36.1699, -115.1398),
+    ("New York", None, "US", 40.7128, -74.0060),
+    ("Los Angeles", None, "US", 34.0522, -118.2437),
+]
+
+
 FALLBACK_COORDINATES: dict[
     tuple[str, str | None, str],
     tuple[float, float],
 ] = {
-    ("LAS-VEGAS", None, "US"): (36.1699, -115.1398),
-    ("NEW-YORK", None, "US"): (40.7128, -74.0060),
-    ("LOS-ANGELES", None, "US"): (34.0522, -118.2437),
+    (
+        _normalize_city(city),
+        _normalize_state(state),
+        _normalize_country(country_code),
+    ): (lat, lon)
+    for city, state, country_code, lat, lon in _RAW_FALLBACK_COORDINATES
 }
 
 
@@ -165,7 +196,7 @@ def _get_fallback_coordinates(
 ) -> tuple[float, float] | None:
     city_key = _normalize_city(city)
     state_key = _normalize_state(state)
-    country_key = country_code.strip().upper()
+    country_key = _normalize_country(country_code)
 
     return FALLBACK_COORDINATES.get(
         (city_key, state_key, country_key)
@@ -194,25 +225,18 @@ def _city_filename(
     country_code: str,
     state: str | None,
 ) -> str:
-    parts = [city]
+    parts = [_filename_part(city)]
 
     if state:
-        parts.append(state)
+        parts.append(_filename_part(state))
 
-    parts.append(country_code)
+    parts.append(_filename_part(country_code))
 
-    return "-".join(
-        part.strip().lower().replace(" ", "-")
-        for part in parts
-    )
+    return "-".join(parts)
 
 
-def _normalize_city(city: str) -> str:
-    return city.strip().upper().replace(" ", "-")
-
-
-def _normalize_state(state: str | None) -> str | None:
-    if state is None:
-        return None
-
-    return state.strip().upper().replace(" ", "-")
+def _filename_part(value: str) -> str:
+    """Convert a value to a safe, readable filename component."""
+    value = value.strip().lower()
+    value = value.replace("-", "--")
+    return re.sub(r"\s+", "-", value)
