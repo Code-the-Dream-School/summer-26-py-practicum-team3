@@ -28,30 +28,29 @@ By the time the dashboard needs the data, all the prep work is already done: the
 
 ```mermaid
 flowchart TD
-	A["<b>City Input / Configuration + Geocoding</b><br/>Provides the cities to track and converts city names to latitude / longitude"]
+	A["<b>City Input / Configuration</b><br/>Loads and validates the configured cities, country codes, timezones, and optional state codes."]
 
-	B["<b>Data Extraction</b><br/>Retrieves air pollution data from OpenWeather API"]
+	B["<b>Data Extraction</b><br/>Resolves city coordinates using OpenWeather geocoding and retrieves air-pollution data from OpenWeather API."]
 
-	C["<b>PostgreSQL — Raw Data</b><br/>Stores raw API responses as received"]
+	C["<b>PostgreSQL — Raw Air Quality Data</b><br/>Stores raw air-pollution API responses as received"]
 
 	D["<b>Data Transformation</b><br/>Cleans, normalizes, and prepares the extracted data for storage"]
 
-	E["<b>PostgreSQL - Prepared Data </b><br/>Stores city, pipeline, raw, and prepared air quality data"]
+	E["<b>PostgreSQL - Prepared Air Quality Data </b><br/>Stores city, pipeline, and prepared air quality data"]
 
 	F["<b>Python Dashboard API</b><br/>Queries prepared data from PostgreSQL and returns it to the frontend"]
 
 	G["<b>React Frontend</b><br/>Displays city air quality data through the dashboard"]
 
-    H["<b>Optional Extension — Dynamic City Search</b><br/>Uses the geocoding API to allow searches beyond the configured city list"]
+    H["<b>Optional Extension — Dynamic City Search</b><br/>Provides cities outside the configured list using the existing geocoding service"]
 
 A --> B
+H --> B
 B --> C
 C --> D
 D --> E
 E --> F
 F --> G
-
-H -.-> A
 
 classDef input fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e
 classDef process fill:#f3f4f6,stroke:#6b7280,stroke-width:2px,color:#111827
