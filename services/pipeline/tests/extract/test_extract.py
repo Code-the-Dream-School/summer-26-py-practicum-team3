@@ -1,10 +1,11 @@
-from unittest.mock import patch, Mock
 from datetime import datetime, timezone
+from unittest.mock import Mock, patch
 
 import requests
-
-from pipeline.extract.openweather_air_pollution import fetch_air_pollution_history
 from pipeline.extract.geocoding import geocode_city
+from pipeline.extract.openweather_air_pollution import (
+  fetch_air_pollution_history,
+)
 
 # Test 1: Successful location → data flow
 
