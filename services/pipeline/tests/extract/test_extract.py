@@ -138,3 +138,18 @@ def test_fetch_air_pollution_history_malformed_response():
   assert result.status == "error"
   assert result.raw_response is None
   assert result.error_message is not None
+  
+# Verification notes:
+#
+# Automated tests:
+# - Successful geocoding: passed
+# - Invalid location: passed
+# - Geocoding API failure with fallback: passed
+# - Successful air-pollution extraction: passed
+# - Malformed air-pollution response: passed
+#
+# Missing API key:
+# The current configuration allows an empty API key value, and the
+# extraction clients do not explicitly reject it. Therefore, a distinct
+# missing-API-key failure test cannot currently be added without defining
+# the expected behavior first.
