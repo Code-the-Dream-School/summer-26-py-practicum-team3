@@ -1,106 +1,140 @@
-from unittest.mock import patch
+from unittest.mock import patch, Mock
+from datetime import datetime, timezone
 
+import requests
+
+from pipeline.extract.openweather_air_pollution import fetch_air_pollution_history
+from pipeline.extract.geocoding import geocode_city
 
 # Test 1: Successful location → data flow
 
-# Unsure if we are geocoding or hardcoding?
-@patch("teams_module.geocoding_function")
-@patch("teams_module.pollution_function")
-def test_successful_location_to_data(
-    mock_pollution,
-    mock_geocoding,
-):
-    # Arrange
-    city = "New York City"
-
-    # currently returning long/lat
-    mock_geocoding.return_value = [-74.0060, 40.7128]
-
-    mock_pollution.return_value = {
-  "coord": {
-    "lon": -74.0060,
-    "lat": 40.7128
-  },
-  "list": [
+@patch("pipeline.extract.geocoding.requests.get")
+def test_geocode_city_success(mock_get):
+  # Arrange
+  mock_response = Mock()
+  mock_response.status_code = 200
+  mock_response.text = '[{"lat": 40.7128, "lon": -74.0060}]'
+  mock_response.json.return_value = [
     {
-      "main": {
-        "aqi": 2
-      },
-      "components": {
-        "co": 204.0,
-        "no": 1.2,
-        "no2": 35.0,
-        "o3": 38.0,
-        "so2": 2.0,
-        "pm2_5": 16.0,
-        "pm10": 32.0,
-        "nh3": 0.5
-      },
-      "dt": 1786482600
+      "lat": 40.7128,
+      "lon": -74.0060,
     }
   ]
-}
+  
+  mock_get.return_value = mock_response
+  
+  # Act
+  result = geocode_city("New York", "US")
 
-    # Act
-    # TODO update air_quality_function to be the correct function name
-    # result = air_quality_function(city)
-
-    # Assert
-    # TODO determine expected_result from functions return value
-    # assert result == expected_result
-
-    # Not sure if we are doing geocoding or hard coding so might remove
-    mock_geocoding.assert_called_once_with(city)
-    # confirm what is passed once we know what will be extracted
-    # mock_pollution.assert_called_once_with(-74.0060, 40.7128)
+  # Assert
+  assert result is not None
+  assert result.lat == 40.7128
+  assert result.lon == -74.0060
+  assert result.source == "geocoded"
 
 
 # Test 2: Invalid location
-# TODO: Confirm whether invalid city input is handled by the extraction layer or by city configuration validation.
-@patch("teams_module.geocoding_function")
-def test_invalid_location(mock_geocoding):
-    # Arrange
-    city = "Invalid City"
+@patch("pipeline.extract.geocoding.requests.get")
+def test_geocode_city_returns_none_for_unknown_city(mock_get):
+  # Arrange
+  mock_response = Mock()
+  mock_response.status_code = 200
+  mock_response.text = "[]"
+  mock_response.json.return_value = []
 
-    # Make geocoding behave like an invalid/unrecognized city.
-    # TODO replace with actual response for the invalid City
-    mock_geocoding.return_value = ...
+  mock_get.return_value = mock_response
 
-    # Act
-	  # TODO update air_quality_function to be the correct function name
-    # result = air_quality_function(city)
+  # Act
+  result = geocode_city("Definitely Not A Real City", "US")
 
-    # Assert
-    # TODO update expected_results with what the return value is for invalid city
-    # assert result == expected_results
+  # Assert
+  assert result is None
 
 
-# Test 3: Empty API response
+# Test 3: API failure uses fallback
+@patch("pipeline.extract.geocoding.requests.get")
+def test_geocode_city_uses_fallback_when_api_fails(mock_get):
+  # Arrange
+  mock_get.side_effect = requests.RequestException("API unavailable")
 
-@patch("teams_module.api_function")
-def test_empty_response(mock_api):
-    # Arrange
-    mock_api.return_value = {}
+  # Act
+  result = geocode_city("New York", "US")
 
-    # Act
-    # TODO update function name to actual function name
-    # result = air_quality_function("New York City")
-
-    # Assert
-    # TODO update expected_results with what is returned for empty or malformed API response
-    # assert result == expected_results
+  # Assert
+  assert result is not None
+  assert result.source == "fallback"
+  assert result.lat == 40.7128
+  assert result.lon == -74.0060
 
 
-# Test 4: Missing API key / configuration
+# Test 4: Successful air-pollution extraction
+def test_fetch_air_pollution_history_success():
+  # Arrange
+  mock_response = Mock()
+  mock_response.status_code = 200
+  mock_response.text = '{"list": [{"main": {"aqi": 2}}]}'
+  mock_response.json.return_value = {
+    "list": [
+      {"dt": 1606482000,
+       "main": {"aqi" : 2},
+       "components": {"pm2_5" : 13.448}}]}
 
-def test_missing_api_key(monkeypatch):
-    # Arrange
-    # TODO confirm this is the name of the API key in 
-    monkeypatch.delenv("OPENWEATHER_API_KEY", raising=False)
+  http_client = Mock()
+  http_client.get.return_value = mock_response
+  
+  start = datetime(2020, 11, 27, tzinfo=timezone.utc)
+  end = datetime(2020, 11, 28, tzinfo=timezone.utc)
 
-    # Act
-    # TODO call the correct function here
-    # result = air_pollution_function(city)
+  # Act
+  result = fetch_air_pollution_history(
+    raw_dir=None,
+    city="New York",
+    country_code="US",
+    lat=40.7128,
+    lon=-74.0060,
+    start=start,
+    end=end,
+    run_id="test-run",
+    pipeline_run_id=1,
+    api_key="test-key",
+    http_client=http_client
+  )
+  
+  # Assert
+  assert result.status == "ok"
+  assert result.raw_response is not None
+  assert result.raw_response["list"][0]["main"]["aqi"] == 2
 
-    # Assert
-    # TODO confirm how missing API key is handled in the actual functions
+# Test 5: Malformed API response
+def test_fetch_air_pollution_history_malformed_response():
+  # Arrange
+  mock_response = Mock()
+  mock_response.status_code = 200
+  mock_response.text = "not json"
+  mock_response.json.side_effect = ValueError("Invalid JSON")
+  
+  http_client = Mock()
+  http_client.get.return_value = mock_response
+  
+  start = datetime(2020, 11, 27, tzinfo=timezone.utc)
+  end = datetime(2020, 11, 28, tzinfo=timezone.utc)
+  
+  # Act
+  result = fetch_air_pollution_history(
+    raw_dir=None,
+      city="New York",
+      country_code="US",
+      lat=40.7128,
+      lon=-74.0060,
+      start=start,
+      end=end,
+      run_id="test-run",
+      pipeline_run_id=1,
+      api_key="test-key",
+      http_client=http_client
+    )
+  
+  # Assert
+  assert result.status == "error"
+  assert result.raw_response is None
+  assert result.error_message is not None
