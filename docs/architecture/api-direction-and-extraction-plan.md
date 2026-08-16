@@ -2,13 +2,35 @@
 
 **Status:** API exploration artifact - not a final DB schema. 
 
-**Scope:** decide which OpenWeather API(s) the dashboard needs, confirm each choice against what the dashboard will show, and give the extract layer enough to build against.
+**Scope:** Explore the available OpenWeather API(s) and identify which ones — potentially more than one, with alternates where it makes sense — could support the dashboard, confirm each choice against what the dashboard will show, and give the extract layer enough to build against.
 
 ---
 
-## 1. Primary APIs: three, not one
+## 1. Resolving coordinates: Geocoding API is primary
 
-OpenWeather isn't a single API - it's a family of separate products. The dashboard's goal isn't "air quality in isolation," it's air quality **in context** (is it hot, is it likely to change soon), so the primary bundle is three APIs that each answer one dashboard question:
+The **Geocoding API** is the dedicated, supported endpoint for turning a city name into `lat`/`lon`:
+
+```
+http://api.openweathermap.org/geo/1.0/direct?q={city name}&appid={API key}
+```
+
+```json
+[
+  {
+    "name": "San Francisco",
+    "lat": 37.7749295,
+    "lon": -122.4194155,
+    "country": "US",
+    "state": "California"
+  }
+]
+```
+
+It returns only location data — no weather — but it's purpose-built for this step, isn't tied to a query param OpenWeather has deprecated, and is the recommended long-term path for resolving a new city's coordinates.
+
+## 2. APIs Available by Name: three, not one
+
+OpenWeather isn't a single API - it's a family of separate products. The dashboard's goal isn't "air quality in isolation," it's air quality **in context**. This bundle of is three APIs -- one proposal for consideration, not yet decided, and not the primary path -- would each answer one dashboard question:
 
 | API | Dashboard question it answers |
 |---|---|
@@ -56,7 +78,8 @@ https://api.openweathermap.org/data/2.5/weather?q={city name},{state code},{coun
 
 ```
 
-One call gets both things a new city needs: the `lat`/`lon` to work with, and a first weather reading for free. No reason to spend a separate Geocoding API call getting *only* coordinates when this endpoint already returns them alongside data we want anyway.
+One call gets both things a new city needs: the `lat`/`lon` to work with, and a first weather reading for free. No reason to spend a separate Geocoding API call getting *only* coordinates when this endpoint already returns them alongside data we might want.
+But the city-name query param on the weather endpoints is marked **deprecated** in OpenWeather's docs — still functional, but no longer maintained. That's why it's documented here as the alternate, not the primary: if it ever breaks, the pipeline should already be built around Geocoding as the default.
 
 **Cadence — open decision:** the City Input Contract as written doesn't have a field for storing `latitude`/`longitude`, and it treats getting coordinates as something the Extract layer does on the fly, not something saved. That leaves two options:
 
@@ -69,18 +92,19 @@ This decision affects the contract itself, not just how the Extract layer is bui
 
 ---
 
-## 2. Endpoints & Required Parameters
+## 3. Endpoints & Required Parameters
 
 Free tier covers everything the project needs - confirmed sufficient, no paid subscription required.
 
-| API | Endpoint | Used for | Required params |
-|---|---|---|---|
+| API                         | Endpoint | Used for | Required params |
+|-----------------------------|---|---|---|
+| Geocoding (primary)         | `/geo/1.0/direct` | Only if the deprecated `q=` param on Current Weather stops working | `q` (city name), `appid` |
 | Current Weather (by city name) | `/data/2.5/weather` | Resolve `lat`/`lon` + get a reading - once per city or every run, pending contract decision above | `q` (city name, optionally `,{state code},{country code}`), `appid` |
 | Current Weather (by coordinates) | `/data/2.5/weather` | Every poll: current conditions | `lat`, `lon`, `appid` |
-| Forecast (5 day / 3 hr) | `/data/2.5/forecast` | Every poll: upcoming conditions | `lat`, `lon`, `appid` |
-| Air Pollution - current | `/data/2.5/air_pollution` | Every poll: current AQI | `lat`, `lon`, `appid` |
-| Air Pollution - forecast | `/data/2.5/air_pollution/forecast` | Every poll: 4-day AQI outlook | `lat`, `lon`, `appid` |
-| Air Pollution - history | `/data/2.5/air_pollution/history` | On demand: trend/history panel | `lat`, `lon`, `start`, `end`, `appid` |
+| Forecast (5 day / 3 hr)     | `/data/2.5/forecast` | Every poll: upcoming conditions | `lat`, `lon`, `appid` |
+| Air Pollution - current     | `/data/2.5/air_pollution` | Every poll: current AQI | `lat`, `lon`, `appid` |
+| Air Pollution - forecast    | `/data/2.5/air_pollution/forecast` | Every poll: 4-day AQI outlook | `lat`, `lon`, `appid` |
+| Air Pollution - history     | `/data/2.5/air_pollution/history` | On demand: trend/history panel | `lat`, `lon`, `start`, `end`, `appid` |
 
 - `lat`, `lon` - decimal degrees.
 - `start`, `end` - Unix timestamps (UTC). Air Pollution history's earliest available data is 27 Nov 2020.
@@ -90,7 +114,7 @@ No pagination on any of these - each returns its full result set in one response
 
 ---
 
-## 3. API Key Handling
+## 4. API Key Handling
 
 - Keys are **never committed**. Store the real key in a local `.env` file, which is already covered by `.gitignore`.
 - Commit an **`.env.example`** with placeholder values so any teammate can copy it and know exactly what's required to run the extractor.
@@ -108,7 +132,7 @@ DEFAULT_LON=-122.4194
 
 ---
 
-## 4. Response Fields the Project Expects to Use
+## 5. Response Fields the Project Expects to Use
 
 ### Air Pollution (current / forecast / history - same shape)
 
@@ -150,7 +174,7 @@ We're pulling every field each response returns rather than pre-filtering - the 
 
 ---
 
-## 5. Errors & Limits the Extract Layer Should Anticipate
+## 6. Errors & Limits the Extract Layer Should Anticipate
 
 | Case | What it means | Handling |
 |---|---|---|
@@ -162,7 +186,7 @@ We're pulling every field each response returns rather than pre-filtering - the 
 
 ---
 
-## 6. Trimmed Example Responses
+## 7. Trimmed Example Responses
 
 **Air Pollution - current** (`forecast`/`history` return the same shape, with multiple entries in `list`):
 
