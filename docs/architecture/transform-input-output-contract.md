@@ -215,3 +215,56 @@ Each output record contains the location context and exactly one observation's m
 This is an **application-level transformed record**. It does not prescribe PostgreSQL column types, indexes, constraints, table names, or other storage details.
 
 ---
+
+## 6. Transformation Rules
+
+### 1. One observation becomes one record
+
+Every element of `payload.list` produces one output record.
+
+### 2. Flatten nested measurements
+
+Nested fields under `main` and `components` are flattened into top-level clean fields.
+
+### 3. Preserve location identity
+
+The `city_id` from the extraction context is copied to every record generated from that response.
+
+### 4. Preserve pipeline lineage
+
+`run_id` and `pipeline_run_id` are copied to every transformed record so downstream processing can identify which pipeline execution produced the data.
+
+### 5. Normalize observation timestamps
+
+The Unix timestamp in `dt` is converted to a UTC datetime and stored as `observed_at`.
+
+### 6. Do not modify the raw payload
+
+Transform reads from the raw payload but does not modify the original raw response.
+
+### 7. Do not aggregate observations
+
+Transform does not calculate daily averages, hourly averages, or other aggregations. Each API observation remains an individual output record.
+
+### 8. Do not define storage behavior
+
+Transform does not determine how records are inserted, updated, indexed, or stored in PostgreSQL.
+
+---
+
+## 7. Invalid or Missing Data
+
+The Transform stage should not silently invent values for missing measurements.
+
+If a required structural field such as `payload.list` is missing or has an unexpected structure, the response cannot be transformed into observation records and should be treated as a transformation failure.
+
+For an individual observation, missing measurement fields should be handled according to the validation rules established by the Transform implementation. The Transform contract does not define database-level `NULL` constraints.
+
+A failed transformation must retain enough context to identify:
+
+* `city_id`
+* `run_id`
+* `pipeline_run_id`
+* The affected raw response or observation
+
+---
