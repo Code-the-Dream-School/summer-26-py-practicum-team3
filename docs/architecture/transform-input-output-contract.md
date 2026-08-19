@@ -167,3 +167,51 @@ Transform converts `dt` into `observed_at`, represented as a UTC datetime.
 The city's configured timezone is not used to change the stored observation instant. It may be used later for presentation or local-time analysis.
 
 ---
+
+## 5. Transform Output
+
+The Transform stage returns a collection of clean air-quality observation records.
+
+Conceptually:
+
+```text
+Transform(RawResponse)
+        ↓
+[
+  AirQualityRecord,
+  AirQualityRecord,
+  AirQualityRecord,
+  ...
+]
+```
+
+Each output record contains the location context and exactly one observation's measurements.
+
+### Output Record
+
+```json
+{
+  "city_id": "us-san-francisco-ca",
+  "city_name": "San Francisco",
+  "country_code": "US",
+  "state_code": "CA",
+  "lat": 37.7749,
+  "lon": -122.4194,
+  "observed_at": "2024-07-03T12:26:40Z",
+  "aqi": 2,
+  "co": 201.94,
+  "no": 0.0,
+  "no2": 1.2,
+  "o3": 68.6,
+  "so2": 0.6,
+  "pm2_5": 4.3,
+  "pm10": 5.1,
+  "nh3": 0.12,
+  "run_id": "run-2024-07-03-001",
+  "pipeline_run_id": "pipeline-2024-07-03-001"
+}
+```
+
+This is an **application-level transformed record**. It does not prescribe PostgreSQL column types, indexes, constraints, table names, or other storage details.
+
+---
