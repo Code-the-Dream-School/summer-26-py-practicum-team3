@@ -268,3 +268,45 @@ A failed transformation must retain enough context to identify:
 * The affected raw response or observation
 
 ---
+
+## 8. Transform Contract Summary
+
+### Input
+
+```text
+RawResponse
+├── location context
+│   ├── city_id
+│   ├── city_name
+│   ├── country_code
+│   ├── state_code
+│   ├── lat
+│   └── lon
+├── API context
+│   ├── api
+│   ├── endpoint
+│   ├── start
+│   ├── end
+│   ├── retrieved_at
+│   ├── status
+│   ├── run_id
+│   └── pipeline_run_id
+└── payload
+    └── list[]
+        └── air-quality observation
+```
+
+### Output
+
+```text
+AirQualityRecord[]
+└── one record per city per observation timestamp
+    ├── city identity
+    ├── coordinates
+    ├── observed_at
+    ├── AQI
+    ├── pollutant measurements
+    └── pipeline lineage
+```
+
+The Transform stage therefore acts as the boundary between **Extract's API-shaped raw data** and **clean, observation-level application data** that can be consumed by the downstream Load/gold layer.
