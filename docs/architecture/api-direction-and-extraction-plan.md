@@ -78,7 +78,7 @@ https://api.openweathermap.org/data/2.5/weather?q={city name},{state code},{coun
 
 ```
 
-One call gets both things a new city needs: the `lat`/`lon` to work with, and a first weather reading for free. No reason to spend a separate Geocoding API call getting *only* coordinates when this endpoint already returns them alongside data we might want.
+This call happens to return `lat/lon` alongside the weather data, which can look convenient at first glance. But per §1, Geocoding is the default way to resolve coordinates — this endpoint is documented here only as the fallback.
 But the city-name query param on the weather endpoints is marked **deprecated** in OpenWeather's docs — still functional, but no longer maintained. That's why it's documented here as the alternate, not the primary: if it ever breaks, the pipeline should already be built around Geocoding as the default.
 
 **Cadence — open decision:** the City Input Contract as written doesn't have a field for storing `latitude`/`longitude`, and it treats getting coordinates as something the Extract layer does on the fly, not something saved. That leaves two options:
@@ -96,15 +96,15 @@ This decision affects the contract itself, not just how the Extract layer is bui
 
 Free tier covers everything the project needs - confirmed sufficient, no paid subscription required.
 
-| API                         | Endpoint | Used for | Required params |
-|-----------------------------|---|---|---|
-| Geocoding (primary)         | `/geo/1.0/direct` | Only if the deprecated `q=` param on Current Weather stops working | `q` (city name), `appid` |
-| Current Weather (by city name) | `/data/2.5/weather` | Resolve `lat`/`lon` + get a reading - once per city or every run, pending contract decision above | `q` (city name, optionally `,{state code},{country code}`), `appid` |
-| Current Weather (by coordinates) | `/data/2.5/weather` | Every poll: current conditions | `lat`, `lon`, `appid` |
-| Forecast (5 day / 3 hr)     | `/data/2.5/forecast` | Every poll: upcoming conditions | `lat`, `lon`, `appid` |
-| Air Pollution - current     | `/data/2.5/air_pollution` | Every poll: current AQI | `lat`, `lon`, `appid` |
-| Air Pollution - forecast    | `/data/2.5/air_pollution/forecast` | Every poll: 4-day AQI outlook | `lat`, `lon`, `appid` |
-| Air Pollution - history     | `/data/2.5/air_pollution/history` | On demand: trend/history panel | `lat`, `lon`, `start`, `end`, `appid` |
+| API                         | Endpoint | Used for                                                                                                                           | Required params |
+|-----------------------------|---|------------------------------------------------------------------------------------------------------------------------------------|---|
+| Geocoding (primary)         | `/geo/1.0/direct` | Resolve `lat`/`lon` for a new city - once per city or every run                                                                    | `q` (city name), `appid` |
+| Current Weather (by city name) | `/data/2.5/weather` | Fallback only, if Geocoding is unavailable - the deprecated `q=` param on this endpoint also returns `lat`/`lon` alongside a reading | `q` (`city name`, optionally `,{state code},{country code}`), `appid` |
+| Current Weather (by coordinates) | `/data/2.5/weather` | Every poll: current conditions                                                                                                     | `lat`, `lon`, `appid` |
+| Forecast (5 day / 3 hr)     | `/data/2.5/forecast` | Every poll: upcoming conditions                                                                                                    | `lat`, `lon`, `appid` |
+| Air Pollution - current     | `/data/2.5/air_pollution` | Every poll: current AQI                                                                                                            | `lat`, `lon`, `appid` |
+| Air Pollution - forecast    | `/data/2.5/air_pollution/forecast` | Every poll: 4-day AQI outlook                                                                                                      | `lat`, `lon`, `appid` |
+| Air Pollution - history     | `/data/2.5/air_pollution/history` | On demand: trend/history panel                                                                                                     | `lat`, `lon`, `start`, `end`, `appid` |
 
 - `lat`, `lon` - decimal degrees.
 - `start`, `end` - Unix timestamps (UTC). Air Pollution history's earliest available data is 27 Nov 2020.
