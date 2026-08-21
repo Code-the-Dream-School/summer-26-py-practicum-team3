@@ -163,11 +163,8 @@ def dedupe_records(
 def build_air_quality_record(
     observation: dict,
     context: dict,
-    *,
-    include_aqi_label: bool = False,
 ) -> dict:
-    """Build one AirQualityRecord from a raw observation and its RawResponse context.
-        include_aqi_label defaults False until aqi_label is approved for the output schema."""
+    """Build one AirQualityRecord from a raw observation and its RawResponse context."""
 
     aqi = normalize_aqi(observation.get("main", {}).get("aqi"))
 
@@ -180,12 +177,10 @@ def build_air_quality_record(
         "lon": normalize_coordinate(context.get("lon"), is_latitude=False),
         "observed_at": unix_to_utc_datetime(observation.get("dt")),
         "aqi": aqi,
+        "aqi_label": aqi_label(aqi),
         **normalize_components(observation.get("components")),
         "run_id": context.get("run_id"),
         "pipeline_run_id": context.get("pipeline_run_id"),
     }
-
-    if include_aqi_label:
-        record["aqi_label"] = aqi_label(aqi)
 
     return record

@@ -440,16 +440,8 @@ def test_build_air_quality_record_maps_all_contract_fields(_sample_observation, 
     assert record["pipeline_run_id"] == "pipeline-2024-07-03-001"
 
 
-def test_build_air_quality_record_omits_aqi_label_by_default(_sample_observation, _sample_context):
-    record = build_air_quality_record(_sample_observation, _sample_context)
-
-    assert "aqi_label" not in record
-
-
 def test_build_air_quality_record_includes_aqi_label_when_flagged(_sample_observation, _sample_context):
-    record = build_air_quality_record(
-        _sample_observation, _sample_context, include_aqi_label=True
-    )
+    record = build_air_quality_record(_sample_observation, _sample_context)
 
     assert record["aqi_label"] == "Fair"
 

@@ -35,12 +35,7 @@ Each row corresponds to a field on the `AirQualityRecord` output, per `transform
 | 9  | Text field cleanup                 | `city_name`, `country_code`, `state_code`              | Whitespace-stripped, empty string -> `NULL`. Casing preserved. `state_code` is optional; its absence is not an error.                                                              |
 | 10 | Duplicate observations             | `city_id` + `observed_at`                              | Composite key. When city/timestamp duplicates exist, keep the record with the higher `pipeline_run_id` (string) and drop the others.                                                  |
 | 11 | Pipeline lineage                   | `run_id`, `pipeline_run_id`                            | Passed through unchanged -- no normalization applied.                                                                                                                              |
-| 12 | AQI Label (proposed derived field) | `aqi_label`                                            | Maps `aqi` values (1–5) to OpenWeather categories: Good/Fair/Moderate/Poor/Very Poor. Provides a human-readable AQI category for dashboards without re‑implementing the mapping.   |
-
-## Notes on `aqi_label`
-The mapping function exists in `operations.py` (`aqi_label`) but is **not called** by default in `transform_raw_records`. 
-This field is not currently part of the output schema — needs sign-off before it's added to the contract and the gold schema. 
-Adding it requires team approval and an update to both the contract and the gold schema.
+| 12 | AQI Label  | `aqi_label`                                            | Maps `aqi` values (1–5) to OpenWeather categories: Good/Fair/Moderate/Poor/Very Poor. Provides a human-readable AQI category for dashboards without re‑implementing the mapping.   |
 
 ## Sprint 4 handoff
 This rule set enforces required-field rules (drop invalid/incomplete records) and type/range/duplicate cleanup, on top of the shape defined in
