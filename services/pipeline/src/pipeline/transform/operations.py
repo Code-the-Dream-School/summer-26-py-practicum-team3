@@ -1,4 +1,3 @@
-# current operations.py (normalization_operations.py)
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -22,9 +21,7 @@ def unix_to_utc_datetime(dt_unix: Any) -> Optional[datetime]:
 
 # --- Rule: coordinate typing + range validation ---
 
-def normalize_coordinate(
-    value: Any, *, is_latitude: bool, decimals: int = 4
-) -> Optional[float]:
+def normalize_coordinate(value: Any, *, is_latitude: bool) -> Optional[float]:
     """
     Cast a coordinate to float and validate its range
     Latitude: -90..90, Longitude: -180..180.
@@ -160,6 +157,8 @@ def dedupe_records(
     return [best[key] for key in order]
 
 
+# --- Record assembly ---
+
 def build_air_quality_record(
     observation: dict,
     context: dict,
@@ -184,3 +183,21 @@ def build_air_quality_record(
     }
 
     return record
+
+
+# --- Rule: required-field enforcement ---
+
+REQUIRED_FIELDS = ("city_id", "observed_at", "lat", "lon", "aqi")
+
+
+def filter_valid_records(records: list[dict]) -> list[dict]:
+    """
+    Remove records missing any required normalized fields.
+    Only records with non‑None values for city_id, observed_at, lat, lon, and aqi are kept.
+    Optional fields are not validated here.
+    """
+    return [
+        record
+        for record in records
+        if all(record.get(field) is not None for field in REQUIRED_FIELDS)
+    ]
