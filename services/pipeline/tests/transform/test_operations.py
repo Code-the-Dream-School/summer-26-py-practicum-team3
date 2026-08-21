@@ -8,14 +8,15 @@ import pytest
 
 from pipeline.transform.operations import (
     aqi_label,
+    build_air_quality_record,
     dedupe_records,
+    filter_valid_records,
     normalize_aqi,
     normalize_component,
     normalize_components,
     normalize_coordinate,
     normalize_text,
     unix_to_utc_datetime,
-    build_air_quality_record,
 )
 
 
@@ -26,6 +27,7 @@ def test_unix_to_utc_datetime_converts_unix_seconds_to_utc():
 
     assert result == datetime(2024, 7, 3, 9, 46, 40, tzinfo=timezone.utc)
     assert result.tzinfo == timezone.utc
+
 
 def test_unix_to_utc_datetime_converts_correctly():
     assert unix_to_utc_datetime(1606223802) == datetime(
@@ -47,6 +49,7 @@ def test_unix_to_utc_datetime_returns_none_for_invalid_value(value):
 
 def test_normalize_coordinate_valid():
     assert normalize_coordinate("51.512345", is_latitude=True) == 51.512345
+
 
 def test_normalize_longitude_casts_to_float():
     assert normalize_coordinate(
@@ -197,6 +200,7 @@ def test_normalize_components_fills_missing_with_none():
         "co", "no", "no2", "o3", "so2", "pm2_5", "pm10", "nh3"
     }
 
+
 def test_normalize_components_sets_missing_fields_to_none():
     result = normalize_components({"co": 201.94})
 
@@ -246,6 +250,7 @@ def test_normalize_text_strips_whitespace_and_empty_values(
 ):
     assert normalize_text(value) == expected
 
+
 def test_normalize_text_preserves_casing():
     assert normalize_text("San Francisco") == "San Francisco"
     assert normalize_text("san francisco") == "san francisco"
@@ -269,6 +274,7 @@ def test_dedupe_records_keeps_highest_pipeline_run_id():
     assert len(result) == 2
     t1_record = next(r for r in result if r["observed_at"] == "2024-07-03T10:00:00Z")
     assert t1_record["aqi"] == 3
+
 
 def test_dedupe_records_keeps_unique_observations():
     records = [
@@ -446,9 +452,78 @@ def test_build_air_quality_record_includes_aqi_label_when_flagged(_sample_observ
     assert record["aqi_label"] == "Fair"
 
 
-def test_build_air_quality_record_drops_invalid_aqi_to_none(_sample_observation, _sample_context):
+def test_build_air_quality_record_normalizes_invalid_aqi_to_none(_sample_observation, _sample_context):
     _sample_observation["main"]["aqi"] = 99
 
     record = build_air_quality_record(_sample_observation, _sample_context)
 
     assert record["aqi"] is None
+    assert record["aqi_label"] is None
+
+
+# --- filter_valid_records tests ---
+
+def test_filter_valid_records_keeps_record_with_all_required_fields(_sample_observation, _sample_context):
+    record = build_air_quality_record(_sample_observation, _sample_context)
+
+    result = filter_valid_records([record])
+
+    assert result == [record]
+
+
+def test_filter_valid_records_drops_record_with_missing_city_id(_sample_observation, _sample_context):
+    _sample_context["city_id"] = None
+    record = build_air_quality_record(_sample_observation, _sample_context)
+
+    result = filter_valid_records([record])
+
+    assert result == []
+
+
+def test_filter_valid_records_drops_record_with_unparsable_timestamp(_sample_observation, _sample_context):
+    _sample_observation["dt"] = "not-a-timestamp"
+    record = build_air_quality_record(_sample_observation, _sample_context)
+
+    result = filter_valid_records([record])
+
+    assert result == []
+
+
+def test_filter_valid_records_drops_record_with_invalid_coordinates(_sample_observation, _sample_context):
+    _sample_context["lat"] = 999
+    record = build_air_quality_record(_sample_observation, _sample_context)
+
+    result = filter_valid_records([record])
+
+    assert result == []
+
+
+def test_filter_valid_records_drops_record_with_invalid_aqi(_sample_observation, _sample_context):
+    _sample_observation["main"]["aqi"] = 99
+    record = build_air_quality_record(_sample_observation, _sample_context)
+
+    result = filter_valid_records([record])
+
+    assert result == []
+
+
+def test_filter_valid_records_keeps_record_with_missing_optional_pollutant(_sample_observation, _sample_context):
+    del _sample_observation["components"]["co"]
+    record = build_air_quality_record(_sample_observation, _sample_context)
+
+    result = filter_valid_records([record])
+
+    assert len(result) == 1
+    assert result[0]["co"] is None
+
+
+def test_filter_valid_records_processes_mixed_batch(_sample_observation, _sample_context):
+    valid = build_air_quality_record(_sample_observation, _sample_context)
+
+    bad_context = dict(_sample_context)
+    bad_context["city_id"] = None
+    invalid = build_air_quality_record(_sample_observation, bad_context)
+
+    result = filter_valid_records([valid, invalid])
+
+    assert result == [valid]
