@@ -15,6 +15,8 @@ This contract defines:
 
 This contract describes **application data**, not a final PostgreSQL schema. The output may later be persisted in PostgreSQL or another storage system, but the Transform contract is independent of that storage design.
 
+See `data_flow_diagram.md` for the overall pipeline flow and where the Transform stage sits between Extract and Load.
+
 ---
 
 ## 1. Transform Input
@@ -141,6 +143,7 @@ Each observation in `payload.list` is flattened into a clean application record.
 | ---------------------------------- | ----------------- | -------------------------------------------------- |
 | `payload.list[i].dt`               | `observed_at`     | Observation timestamp converted to a UTC datetime. |
 | `payload.list[i].main.aqi`         | `aqi`             | OpenWeather Air Quality Index value.               |
+| `payload.list[i].main.aqi`         | `aqi_label`        | Human-readable AQI category: Good, Fair, Moderate, Poor, or Very Poor. |
 | `payload.list[i].components.co`    | `co`              | Carbon monoxide measurement.                       |
 | `payload.list[i].components.no`    | `no`              | Nitrogen monoxide measurement.                     |
 | `payload.list[i].components.no2`   | `no2`             | Nitrogen dioxide measurement.                      |
@@ -199,6 +202,7 @@ Each output record contains the location context and exactly one observation's m
   "lon": -122.4194,
   "observed_at": "2024-07-03T12:26:40Z",
   "aqi": 2,
+  "aqi_label": "Fair",
   "co": 201.94,
   "no": 0.0,
   "no2": 1.2,
@@ -258,7 +262,7 @@ The Transform stage should not silently invent values for missing measurements.
 
 If a required structural field such as `payload.list` is missing or has an unexpected structure, the response cannot be transformed into observation records and should be treated as a transformation failure.
 
-For an individual observation, missing measurement fields should be handled according to the validation rules established by the Transform implementation. The Transform contract does not define database-level `NULL` constraints.
+For an individual observation, missing measurement fields should be handled according to the validation rules established by the Transform implementation. Valid ranges and measurement units for pollutant fields are defined in `normalization-rules.md`. The Transform contract does not define database-level `NULL` constraints.
 
 A failed transformation must retain enough context to identify:
 
