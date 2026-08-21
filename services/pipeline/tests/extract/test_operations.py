@@ -429,7 +429,7 @@ def _sample_context():
 
 
 def test_build_air_quality_record_maps_all_contract_fields(_sample_observation, _sample_context):
-    record = build_air_quality_record(_sample_observation(), _sample_context())
+    record = build_air_quality_record(_sample_observation, _sample_context)
 
     assert record["city_id"] == "us-san-francisco-ca"
     assert record["city_name"] == "San Francisco"  # normalize_text strips whitespace
@@ -441,23 +441,22 @@ def test_build_air_quality_record_maps_all_contract_fields(_sample_observation, 
 
 
 def test_build_air_quality_record_omits_aqi_label_by_default(_sample_observation, _sample_context):
-    record = build_air_quality_record(_sample_observation(), _sample_context())
+    record = build_air_quality_record(_sample_observation, _sample_context)
 
     assert "aqi_label" not in record
 
 
-def test_build_air_quality_record_includes_aqi_label_when_flagged(sample_observation, sample_context):
+def test_build_air_quality_record_includes_aqi_label_when_flagged(_sample_observation, _sample_context):
     record = build_air_quality_record(
-        _sample_observation(), _sample_context(), include_aqi_label=True
+        _sample_observation, _sample_context, include_aqi_label=True
     )
 
     assert record["aqi_label"] == "Fair"
 
 
-def test_build_air_quality_record_drops_invalid_aqi_to_none(sample_observation, sample_context):
-    observation = _sample_observation()
-    observation["main"]["aqi"] = 99
+def test_build_air_quality_record_drops_invalid_aqi_to_none(_sample_observation, _sample_context):
+    _sample_observation["main"]["aqi"] = 99
 
-    record = build_air_quality_record(observation, _sample_context())
+    record = build_air_quality_record(_sample_observation, _sample_context)
 
     assert record["aqi"] is None
