@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import SecretStr
+
 from pipeline.extract import geocoding
 from pydantic import SecretStr
 
