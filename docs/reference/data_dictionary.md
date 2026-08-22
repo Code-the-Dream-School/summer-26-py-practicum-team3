@@ -17,7 +17,7 @@ This document defines the schema, data types, units, and transformation rules fo
 | `lat` | Geographical latitude of measurement/request location | `float` | Decimal degrees (`-90.0` to `90.0`) | Envelope context: `envelope.lat` (Single source of truth) | Required | `47.8623` |
 | `lon` | Geographical longitude of measurement/request location | `float` | Decimal degrees (`-180.0` to `180.0`) | Envelope context: `envelope.lon` (Single source of truth) | Required | `-121.8157` |
 | `aqi` | Qualitative Air Quality Index level (1=Good, 2=Fair, 3=Moderate, 4=Poor, 5=Very Poor) | `integer` | Categorical integer (`1` to `5`) | `raw["main"]["aqi"]` | Required | `2` |
-| `aqi_label` | Human-readable AQI category | `string` | One of: Good, Fair, Moderate, Poor, Very Poor | Derived from `aqi` via lookup table | Required | `Fair` |
+| `aqi_label` | Human-readable AQI category | `string` | One of: Good, Fair, Moderate, Poor, Very Poor | Derived from `aqi` via the `_AQI_LABELS` lookup dict in `aqi_label()` (`services/pipeline/src/pipeline/transform/operations.py`) | Required | `Fair` |
 | `co` | Concentration of Carbon monoxide | `float` | ug/m3 | `raw["components"]["co"]` | Optional | `201.94` |
 | `no` | Concentration of Nitrogen monoxide | `float` | ug/m3 | `raw["components"]["no"]` | Optional | `0.01` |
 | `no2` | Concentration of Nitrogen dioxide | `float` | ug/m3 | `raw["components"]["no2"]` | Optional | `3.77` |
@@ -28,7 +28,7 @@ This document defines the schema, data types, units, and transformation rules fo
 | `nh3` | Concentration of Ammonia | `float` | ug/m3 | `raw["components"]["nh3"]` | Optional | `0.85` |
 | `run_id` | Identifier for the pipeline run | `string` | `run-YYYY-MM-DD-NNN` | Envelope context: `envelope.run_id` | Required | `run-2026-08-15-001` |
 | `pipeline_run_id` | Identifier connecting the response to the pipeline execution run | `string` | `pipeline-YYYY-MM-DD-NNN` | Envelope context: `envelope.pipeline_run_id` | Required | `pipeline-2026-08-15-001` |
-| `retrieved_at` | Timestamp when the raw payload was fetched from the API | `datetime` | UTC, ISO-8601 (`YYYY-MM-DDTHH:MM:SSZ`) | Envelope context: `envelope.retrieved_at` | Required | `2026-08-15T23:05:12Z` |
+| `retrieved_at` | Timestamp when the raw payload was fetched from the API | `datetime` | UTC, ISO-8601 (`YYYY-MM-DDTHH:MM:SSZ`) | Envelope context: `envelope.retrieved_at` | Not yet implemented — excluded from Extraction Context per transform-input-output-contract.md §2; needs a decision (add to Transform output, or drop from Gold) | `2026-08-15T23:05:12Z` |
 
 ---
 
@@ -49,7 +49,7 @@ This document defines the schema, data types, units, and transformation rules fo
 
 ## Quality Rules & Invariants *(Proposed — to be confirmed in AIR-19)*
 
-* **Temporal Integrity:** `observed_at <= retrieved_at`.
+* **Temporal Integrity:** `observed_at <= retrieved_at` (enforceable only once `retrieved_at` is added to the Transform output — see note above).
 * **Value Bounds:**
   * `aqi` must be one of `[1, 2, 3, 4, 5]`.
   * All chemical pollutant concentrations (`co`, `no`, `no2`, `o3`, `so2`, `pm2_5`, `pm10`, `nh3`) must be `>= 0.0` when present (or `NULL`).
