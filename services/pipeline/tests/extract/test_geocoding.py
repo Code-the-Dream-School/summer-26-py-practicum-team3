@@ -14,7 +14,14 @@ class MockResponse:
     def json(self):
         return self._json_data
 
-
+@pytest.fixture(autouse=True)
+def configure_api_key(monkeypatch):
+    monkeypatch.setattr(
+        geocoding.settings,
+        "openweather_api_key",
+        SecretStr("test-api-key"),
+    )
+    
 def test_geocode_city_returns_api_coordinates(monkeypatch, tmp_path):
     response = MockResponse(
         status_code=200,
