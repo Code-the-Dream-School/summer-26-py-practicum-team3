@@ -4,7 +4,6 @@ import pytest
 from pydantic import SecretStr
 
 from pipeline.extract import geocoding
-from pydantic import SecretStr
 
 
 class MockResponse:
@@ -16,14 +15,7 @@ class MockResponse:
     def json(self):
         return self._json_data
 
-@pytest.fixture(autouse=True)
-def configure_api_key(monkeypatch):
-    monkeypatch.setattr(
-        geocoding.settings,
-        "openweather_api_key",
-        SecretStr("test-api-key"),
-    )
-    
+
 def test_geocode_city_returns_api_coordinates(monkeypatch, tmp_path):
     response = MockResponse(
         status_code=200,
@@ -357,13 +349,9 @@ def test_geocode_city_filenames_distinguish_spaces_and_hyphens(
         raw_dir=tmp_path,
     )
 
-    assert (
-        tmp_path / "winston-salem-us_geocoding.json"
-    ).exists()
+    assert (tmp_path / "winston-salem-us_geocoding.json").exists()
 
-    assert (
-        tmp_path / "winston--salem-us_geocoding.json"
-    ).exists()
+    assert (tmp_path / "winston--salem-us_geocoding.json").exists()
 
 
 def test_geocode_city_uses_fallback_when_api_key_is_not_configured(
@@ -377,9 +365,7 @@ def test_geocode_city_uses_fallback_when_api_key_is_not_configured(
     )
 
     def mock_get(*args, **kwargs):
-        pytest.fail(
-            "API should not be called when API key is not configured"
-        )
+        pytest.fail("API should not be called when API key is not configured")
 
     monkeypatch.setattr(
         geocoding.requests,

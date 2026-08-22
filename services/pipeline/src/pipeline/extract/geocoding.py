@@ -94,8 +94,7 @@ def geocode_city(
 
     if not api_key:
         logger.warning(
-            "OpenWeather API key is not configured; "
-            "skipping geocoding API request."
+            "OpenWeather API key is not configured; skipping geocoding API request."
         )
 
         fallback = _get_fallback_coordinates(
@@ -222,9 +221,7 @@ def _get_fallback_coordinates(
     state_key = _normalize_state(state)
     country_key = _normalize_country(country_code)
 
-    return FALLBACK_COORDINATES.get(
-        (city_key, state_key, country_key)
-    )
+    return FALLBACK_COORDINATES.get((city_key, state_key, country_key))
 
 
 def _save_raw_response(
