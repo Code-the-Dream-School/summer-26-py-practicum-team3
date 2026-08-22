@@ -34,3 +34,25 @@ Stores configured city and location reference information.
 **Unique constraint:** `city_name`, `country_code`, and `state_code`, treating a missing `state_code` as an empty value.
 
 ---
+
+### `pipeline_runs`
+
+Tracks each execution of the pipeline.
+
+| Column               | PostgreSQL Type | Required | Key / Constraint                 | Description                              |
+| -------------------- | --------------- | -------: | -------------------------------- | ---------------------------------------- |
+| `pipeline_run_id`    | `BIGSERIAL`     |      Yes | **PK**                           | Database identifier for the pipeline run |
+| `run_id`             | `TEXT`          |      Yes | **UNIQUE**                       | Pipeline run identifier                  |
+| `source`             | `TEXT`          |      Yes | —                                | Pipeline/source name                     |
+| `history_hours`      | `INTEGER`       |      Yes | `> 0`                            | Number of historical hours requested     |
+| `window_start_utc`   | `TIMESTAMPTZ`   |      Yes | —                                | Start of requested data window           |
+| `window_end_utc`     | `TIMESTAMPTZ`   |      Yes | `>= window_start_utc`            | End of requested data window             |
+| `status`             | `TEXT`          |      Yes | `running`, `succeeded`, `failed` | Current pipeline status                  |
+| `city_count`         | `INTEGER`       |      Yes | `>= 0`                           | Number of cities processed               |
+| `raw_response_count` | `INTEGER`       |      Yes | `>= 0`                           | Number of raw responses stored           |
+| `gold_row_count`     | `INTEGER`       |      Yes | `>= 0`                           | Number of transformed rows               |
+| `error_message`      | `TEXT`          |       No | —                                | Error information when a run fails       |
+| `finished_at`        | `TIMESTAMPTZ`   |       No | —                                | Time the pipeline finished               |
+| `created_at`         | `TIMESTAMPTZ`   |      Yes | Default `NOW()`                  | Time the pipeline run was created        |
+
+---
