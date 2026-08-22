@@ -13,3 +13,17 @@ SRC_DIR = Path(__file__).resolve().parents[1] / "src"
 
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
+
+import pytest
+from pydantic import SecretStr
+
+from pipeline.extract import geocoding
+
+
+@pytest.fixture(autouse=True)
+def configure_api_key(monkeypatch):
+    monkeypatch.setattr(
+        geocoding.settings,
+        "openweather_api_key",
+        SecretStr("test-api-key"),
+    )
