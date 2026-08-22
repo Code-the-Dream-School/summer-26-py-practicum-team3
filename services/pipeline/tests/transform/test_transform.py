@@ -105,3 +105,10 @@ def test_transform_deduplicates_repeated_timestamps(load_fixture):
     result = transform(raw_response)
 
     assert len(result) == 1
+
+def test_transform_rejects_malformed_required_field(load_fixture):
+    """Raise an error when a required observation field has an invalid value."""
+    raw_response = load_fixture("air_pollution_malformed_required.json")
+
+    with pytest.raises(ValueError):
+        transform(raw_response)
