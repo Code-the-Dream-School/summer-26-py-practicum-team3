@@ -89,13 +89,37 @@ def geocode_city(
         A Coordinates object with the source set to "geocoded" or "fallback",
         or None if coordinates cannot be found from either source.
     """
+
+    api_key = settings.openweather_api_key.get_secret_value().strip()
+
+    if not api_key:
+        logger.warning(
+            "OpenWeather API key is not configured; "
+            "skipping geocoding API request."
+        )
+
+        fallback = _get_fallback_coordinates(
+            city=city,
+            country_code=country_code,
+            state=state,
+        )
+
+        if fallback is not None:
+            return Coordinates(
+                lat=fallback[0],
+                lon=fallback[1],
+                source="fallback",
+            )
+
+        return None
+
     try:
         response = requests.get(
             GEOCODING_URL,
             params={
                 "q": _build_query(city, country_code, state),
                 "limit": 1,
-                "appid": settings.openweather_api_key,
+                "appid": api_key,
             },
             timeout=10,
         )

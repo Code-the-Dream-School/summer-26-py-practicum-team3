@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import pytest
 from pipeline.extract import geocoding
+from pydantic import SecretStr
 
 
 class MockResponse:
@@ -353,3 +355,36 @@ def test_geocode_city_filenames_distinguish_spaces_and_hyphens(
     assert (
         tmp_path / "winston--salem-us_geocoding.json"
     ).exists()
+
+
+def test_geocode_city_uses_fallback_when_api_key_is_not_configured(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setattr(
+        geocoding.settings,
+        "openweather_api_key",
+        SecretStr(""),
+    )
+
+    def mock_get(*args, **kwargs):
+        pytest.fail(
+            "API should not be called when API key is not configured"
+        )
+
+    monkeypatch.setattr(
+        geocoding.requests,
+        "get",
+        mock_get,
+    )
+
+    coordinates = geocoding.geocode_city(
+        city="Las Vegas",
+        country_code="US",
+        raw_dir=tmp_path,
+    )
+
+    assert coordinates is not None
+    assert coordinates.lat == 36.1699
+    assert coordinates.lon == -115.1398
+    assert coordinates.source == "fallback"
