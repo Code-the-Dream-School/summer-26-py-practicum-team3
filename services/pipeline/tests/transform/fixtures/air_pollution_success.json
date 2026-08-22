@@ -1,0 +1,56 @@
+{
+  "city_id": "us-san-francisco-ca",
+  "city_name": "San Francisco",
+  "country_code": "US",
+  "state_code": "CA",
+  "lat": 37.7749,
+  "lon": -122.4194,
+  "api": "OpenWeather Air Pollution API",
+  "endpoint": "/data/2.5/air_pollution/history",
+  "start": "2024-07-03T00:00:00Z",
+  "end": "2024-07-03T23:59:59Z",
+  "retrieved_at": "2024-07-04T00:00:00Z",
+  "run_id": "run-2024-07-03-001",
+  "pipeline_run_id": "pipeline-2024-07-03-001",
+  "status": 200,
+  "payload": {
+    "coord": {
+      "lon": -122.4194,
+      "lat": 37.7749
+    },
+    "list": [
+      {
+        "dt": 1720009600,
+        "main": {
+          "aqi": 2
+        },
+        "components": {
+          "co": 201.94,
+          "no": 0.0,
+          "no2": 1.2,
+          "o3": 68.6,
+          "so2": 0.6,
+          "pm2_5": 4.3,
+          "pm10": 5.1,
+          "nh3": 0.12
+        }
+      },
+      {
+        "dt": 1720013200,
+        "main": {
+          "aqi": 1
+        },
+        "components": {
+          "co": 190.1,
+          "no": 0.0,
+          "no2": 0.9,
+          "o3": 72.1,
+          "so2": 0.4,
+          "pm2_5": 3.8,
+          "pm10": 4.7,
+          "nh3": 0.1
+        }
+      }
+    ]
+  }
+}
