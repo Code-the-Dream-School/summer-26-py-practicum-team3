@@ -10,12 +10,12 @@ This document defines the schema, data types, units, and transformation rules fo
 | Field Name | Description | Data Type | Unit / Format | Source / Transformation Rule | Required / Optional | Example |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `observed_at` | Timestamp of the air quality observation | `datetime` | UTC, ISO-8601 (`YYYY-MM-DDTHH:MM:SSZ`) | `raw["dt"]` -> `datetime.fromtimestamp(dt, tz=timezone.utc)` | Required | `2026-08-15T12:00:00Z` |
-| `city_id` | Business identifier configured for the city | `string` | Lowercase slug from config | Envelope context: `envelope.city_id` | Required | `sultan-us` |
-| `city_name` | Display name of the city | `string` | UTF-8 text | Envelope context: `envelope.city_name` | Required | `Sultan` |
+| `city_id` | Business identifier configured for the city | `string` | Lowercase slug from config | Envelope context: `envelope.city_id` | Required | `us-san-francisco-ca` |
+| `city_name` | Display name of the city | `string` | UTF-8 text | Envelope context: `envelope.city_name` | Required | `San Francisco` |
 | `country_code` | ISO 3166-1 alpha-2 country code | `string` | ISO 3166-1 alpha-2 (Uppercase) | Envelope context: `envelope.country_code`. Note: current `normalize_text` (PR #14) preserves casing as-is — uppercasing is not yet implemented and needs adding if this rule stays. | Required | `US` |
-| `state_code` | State/province/region code, when available | `string` | ISO 3166-2 subdivision code (Uppercase) or absent | Envelope context: `envelope.state_code` | Optional | `WA` |
-| `lat` | Geographical latitude of measurement/request location | `float` | Decimal degrees (`-90.0` to `90.0`) | Envelope context: `envelope.lat` (Single source of truth) | Required | `47.8623` |
-| `lon` | Geographical longitude of measurement/request location | `float` | Decimal degrees (`-180.0` to `180.0`) | Envelope context: `envelope.lon` (Single source of truth) | Required | `-121.8157` |
+| `state_code` | State/province/region code, when available | `string` | ISO 3166-2 subdivision code (Uppercase) or absent | Envelope context: `envelope.state_code` | Optional | `CA` |
+| `lat` | Geographical latitude of measurement/request location | `float` | Decimal degrees (`-90.0` to `90.0`) | Envelope context: `envelope.lat` (Single source of truth) | Required | `37.7749` |
+| `lon` | Geographical longitude of measurement/request location | `float` | Decimal degrees (`-180.0` to `180.0`) | Envelope context: `envelope.lon` (Single source of truth) | Required | `-122.4194` |
 | `aqi` | Qualitative Air Quality Index level (1=Good, 2=Fair, 3=Moderate, 4=Poor, 5=Very Poor) | `integer` | Categorical integer (`1` to `5`) | `raw["main"]["aqi"]` | Required | `2` |
 | `aqi_label` | Human-readable AQI category | `string` | One of: Good, Fair, Moderate, Poor, Very Poor | Derived from `aqi` via the `_AQI_LABELS` lookup dict in `aqi_label()` (`services/pipeline/src/pipeline/transform/operations.py`) | Required | `Fair` |
 | `co` | Concentration of Carbon monoxide | `float` | ug/m3 | `raw["components"]["co"]` | Optional | `201.94` |
