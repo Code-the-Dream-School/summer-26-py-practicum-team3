@@ -3,7 +3,6 @@
 from datetime import datetime, timezone
 
 import pytest
-
 from pipeline.transform import transform
 
 
