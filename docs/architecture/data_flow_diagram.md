@@ -31,12 +31,13 @@ flowchart TD
     EX2 --> RAW[("air_pollution_raw<br/>one row per API call<br/>payload stored unparsed")]
     EX2 --> LOG2["LOG: extract complete<br/>city_count, raw_response_count"]
 
-    LOG2 --> TR1["TRANSFORM: build the gold table in memory<br/>flatten, convert timestamps, drop duplicates,<br/>stamp pipeline_run_id on every row"]
-    RAW --> TR1
-    TR1 --> LOG3["LOG: transform complete<br/>gold_row_count"]
+    LOG2 --> TR1["TRANSFORM: RawResponse → AirQualityRecord[]<br/>flatten payload.list[], convert timestamps,<br/>drop duplicates and invalid records"]
+    RAW -->|"Transform input contract"| TR1
+    TR1 --> TR2["One record per city<br/>per observation timestamp"]
+    TR2 --> LOG3["LOG: transform complete<br/>gold_row_count"]
 
     LOG3 --> LD1["LOAD: write the gold dataset"]
-    LD1 --> GOLDPG[("air_pollution_gold<br/>one row per city per hour")]
+    LD1 --> GOLDPG[("air_pollution_gold<br/>one row per city per observation timestamp")]
     LD1 --> LOG4["LOG: load complete<br/>row count"]
 
     LOG4 --> DONE["Update pipeline_runs to succeeded,<br/>with counts"]
@@ -55,17 +56,35 @@ flowchart TD
     class PGRUNS,CITIES,GEOC,RAW,GOLDPG store
 ```
 
+The Transform boundary is:
+
+```text
+Extract
+   │
+   │ RawResponse
+   │ one response envelope per API call
+   ▼
+Transform
+   │
+   │ AirQualityRecord[]
+   │ one record per city per observation timestamp
+   ▼
+Load / Gold
+```
+
+See `transform-input-output-contract.md` for the complete Transform input/output field definitions and raw-to-clean field mapping.
+
 All five tables live in the same PostgreSQL database.
 
 ## Tables
 
-| Table | Purpose |
-|---|---|
-| `cities` | The cities we track. Read at the start of extract, never written by the pipeline. |
-| `pipeline_runs` | One row per pipeline execution, with status and counts. |
-| `geocoding_cache` | City name to latitude and longitude, written once per city. |
-| `air_pollution_raw` | One row per API call, holding the response exactly as received. |
-| `air_pollution_gold` | The cleaned dataset, one row per city per hour. |
+| Table                | Purpose                                                                           |
+| -------------------- | --------------------------------------------------------------------------------- |
+| `cities`             | The cities we track. Read at the start of extract, never written by the pipeline. |
+| `pipeline_runs`      | One row per pipeline execution, with status and counts.                           |
+| `geocoding_cache`    | City name to latitude and longitude, written once per city.                       |
+| `air_pollution_raw`  | One row per API call, holding the response exactly as received.                   |
+| `air_pollution_gold` | The cleaned dataset, one row per city per observation timestamp.                  |
 
 The city input contract defines the fields on `cities`.
 
@@ -87,9 +106,9 @@ The city input contract defines the fields on `cities`.
 
 5. **Extract:** The extract stage reads the city list from `cities` and processes cities one at a time:
 
-   - Geocode each city name to obtain latitude and longitude, reusing `geocoding_cache` when the city has been seen before.
-   - Request pollution history for those coordinates within the requested time window.
-   - Insert the response into `air_pollution_raw` exactly as received, before any parsing or transformation.
+   * Geocode each city name to obtain latitude and longitude, reusing `geocoding_cache` when the city has been seen before.
+   * Request pollution history for those coordinates within the requested time window.
+   * Insert the response into `air_pollution_raw` exactly as received, before any parsing or transformation.
 
    Keeping raw responses allows the gold dataset to be rebuilt later without making additional API requests.
 
@@ -99,11 +118,13 @@ The city input contract defines the fields on `cities`.
 
    The transformation process:
 
-   - Flattens the nested list[] API response into one row per city per timestamp.
-   - Converts dt Unix timestamps into UTC timestamps.
-   - Removes duplicate and invalid records.
-   - Keeps the AQI value and eight pollutant measurements.
-   - Adds pipeline_run_id to every row.
+   * Flattens the nested list[] API response into one row per city per timestamp.
+   * Converts dt Unix timestamps into UTC timestamps.
+   * Removes duplicate and invalid records.
+   * Keeps the AQI value and eight pollutant measurements.
+   * Adds pipeline_run_id to every row.
+
+   See `transform-input-output-contract.md` for the complete Transform input/output field definitions and raw-to-clean field mapping.
 
    No persistent writes happen during this stage, making it easier to test independently.
 
@@ -117,22 +138,22 @@ The city input contract defines the fields on `cities`.
 
 Configuration enters in one place, at step 1, and reaches the rest of the pipeline through `settings`.
 
-| Setting | What it controls |
-|---|---|
-| OpenWeather API key | Authenticates every API call. Never committed to the repository. |
-| PostgreSQL connection details | Which database every stage reads from and writes to. |
-| `history_hours` | How far back the requested window reaches. |
+| Setting                       | What it controls                                                 |
+| ----------------------------- | ---------------------------------------------------------------- |
+| OpenWeather API key           | Authenticates every API call. Never committed to the repository. |
+| PostgreSQL connection details | Which database every stage reads from and writes to.             |
+| `history_hours`               | How far back the requested window reaches.                       |
 
 ## Read and write responsibilities
 
-| Stage | Reads from | Writes to |
-|---|---|---|
-| Configuration | Environment variables, `.env` | Nothing |
-| Run setup | Nothing | `pipeline_runs` |
-| Extract | `cities`; `geocoding_cache`; OpenWeather geocoding and history endpoints | `air_pollution_raw`; new entries in `geocoding_cache` |
-| Transform | `air_pollution_raw` | Nothing |
-| Load | The in-memory gold table | `air_pollution_gold` (Parquet and Azure copies are possible later, not planned here) |
-| Run close-out | Nothing | Status update on `pipeline_runs` |
+| Stage         | Reads from                                                               | Writes to                                                                            |
+| ------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| Configuration | Environment variables, `.env`                                            | Nothing                                                                              |
+| Run setup     | Nothing                                                                  | `pipeline_runs`                                                                      |
+| Extract       | `cities`; `geocoding_cache`; OpenWeather geocoding and history endpoints | `air_pollution_raw`; new entries in `geocoding_cache`                                |
+| Transform     | `air_pollution_raw`                                                      | Nothing                                                                              |
+| Load          | The in-memory gold table                                                 | `air_pollution_gold` (Parquet and Azure copies are possible later, not planned here) |
+| Run close-out | Nothing                                                                  | Status update on `pipeline_runs`                                                     |
 
 Only the extract stage communicates with external APIs, and only the load stage publishes the final dataset.
 
@@ -140,33 +161,32 @@ Only the extract stage communicates with external APIs, and only the load stage 
 
 Every log line carries run_id and pipeline_run_id, so one run's activity can be pulled out of a mixed log.
 
-| When | Level | What it records |
-|---|---|---|
-| Pipeline starting | info | Source, history_hours, window start and end |
-| Extract starting | info | Run identifiers and source |
-| Extract complete | info | Number of cities, number of raw responses |
-| Transform starting | info | Number of raw responses going in |
-| Transform complete | info | Number of gold rows produced |
-| Load starting | info | Number of gold rows to write |
-| Load complete | info | Rows written to `air_pollution_gold` |
-| Pipeline succeeded | info | All counts |
-| Any failure | error, with traceback | Where it failed, plus the counts reached so far |
-
+| When               | Level                 | What it records                                 |
+| ------------------ | --------------------- | ----------------------------------------------- |
+| Pipeline starting  | info                  | Source, history_hours, window start and end     |
+| Extract starting   | info                  | Run identifiers and source                      |
+| Extract complete   | info                  | Number of cities, number of raw responses       |
+| Transform starting | info                  | Number of raw responses going in                |
+| Transform complete | info                  | Number of gold rows produced                    |
+| Load starting      | info                  | Number of gold rows to write                    |
+| Load complete      | info                  | Rows written to `air_pollution_gold`            |
+| Pipeline succeeded | info                  | All counts                                      |
+| Any failure        | error, with traceback | Where it failed, plus the counts reached so far |
 
 ## When a step fails
 
 If any stage raises an exception, the pipeline performs the following actions:
 
 1. Log the exception with context.
-   
+
    The error log includes the traceback, run identifiers, and counts reached before failure.
 
 2. Mark the run as failed.
-   
+
    The pipeline_runs record is updated with the error message, completion time, and progress counts.
-   
-3. Re-raise the exception. 
-   
+
+3. Re-raise the exception.
+
    The process exits with a non-zero status so the caller knows the pipeline failed.
 
 Errors are never silently ignored. The run record remains useful for debugging because raw responses collected before failure are preserved, and the record shows how far execution progressed.
