@@ -3,6 +3,7 @@ from __future__ import annotations
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     openweather_api_key: SecretStr = SecretStr("")
 
