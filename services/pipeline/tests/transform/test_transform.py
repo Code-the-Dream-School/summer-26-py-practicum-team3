@@ -3,14 +3,14 @@
 from datetime import datetime, timezone
 
 import pytest
-from pipeline.transform import transform
+from pipeline.transform.transform import transform_raw_response
 
 
 def test_transform_successful_response(load_fixture):
     """Transform a representative raw response into clean air-quality records."""
     raw_response = load_fixture("air_pollution_success.json")
 
-    result = transform(raw_response)
+    result = transform_raw_response(raw_response)
 
     assert len(result) == 2
 
@@ -46,7 +46,7 @@ def test_transform_carries_extraction_context_to_every_record(load_fixture):
     """Copy location and pipeline context to every transformed observation."""
     raw_response = load_fixture("air_pollution_success.json")
 
-    result = transform(raw_response)
+    result = transform_raw_response(raw_response)
 
     assert len(result) == 2
 
@@ -65,7 +65,7 @@ def test_transform_empty_response_returns_empty_list(load_fixture):
     """Return no records when the raw response contains an empty observation list."""
     raw_response = load_fixture("air_pollution_empty.json")
 
-    result = transform(raw_response)
+    result = transform_raw_response(raw_response)
 
     assert result == []
 
@@ -74,7 +74,7 @@ def test_transform_handles_missing_optional_fields(load_fixture):
     """Transform a response when an optional context or measurement field is absent."""
     raw_response = load_fixture("air_pollution_missing_optional.json")
 
-    result = transform(raw_response)
+    result = transform_raw_response(raw_response)
 
     assert len(result) == 1
 
@@ -95,14 +95,14 @@ def test_transform_rejects_missing_required_field(load_fixture):
     raw_response = load_fixture("air_pollution_missing_required.json")
 
     with pytest.raises(ValueError):
-        transform(raw_response)
+        result = transform_raw_response(raw_response)
 
 
 def test_transform_deduplicates_repeated_timestamps(load_fixture):
     """Keep one clean record when multiple observations share the same timestamp."""
     raw_response = load_fixture("air_pollution_duplicate_timestamps.json")
 
-    result = transform(raw_response)
+    result = transform_raw_response(raw_response)
 
     assert len(result) == 1
 
@@ -111,4 +111,4 @@ def test_transform_rejects_malformed_required_field(load_fixture):
     raw_response = load_fixture("air_pollution_malformed_required.json")
 
     with pytest.raises(ValueError):
-        transform(raw_response)
+        transform_raw_response(raw_response)

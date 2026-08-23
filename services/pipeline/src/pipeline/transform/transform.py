@@ -29,6 +29,7 @@ def transform_raw_response(raw_response):
     if not observations:
         return []
 
+    seen_observed_at = set()
     records = []
 
     for observation in observations:
@@ -41,21 +42,27 @@ def transform_raw_response(raw_response):
         lon = raw_response.get("lon")
 
         if city_id is None or lat is None or lon is None:
-            continue
+            raise ValueError("Required location/context field is missing")
 
         # Required observation timestamp
         dt = observation.get("dt")
 
         if dt is None:
-            continue
+            raise ValueError("Required observation timestamp is missing")
 
         try:
             observed_at = datetime.fromtimestamp(
                 int(dt),
                 tz=timezone.utc,
             )
-        except (TypeError, ValueError, OSError):
+            
+        except (TypeError, ValueError, OSError) as exc:
+            raise ValueError("Invalid observation timestamp") from exc
+        
+        if observed_at in seen_observed_at:
             continue
+
+        seen_observed_at.add(observed_at)
 
         # Coordinates
         try:
@@ -75,11 +82,11 @@ def transform_raw_response(raw_response):
 
         try:
             aqi = int(main.get("aqi"))
-        except (TypeError, ValueError):
-            continue
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Invalid AQI value") from exc
 
         if aqi not in (1, 2, 3, 4, 5):
-            continue
+            raise ValueError("AQI must be between 1 and 5")
 
         aqi_labels = {
             1: "Good",
