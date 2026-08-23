@@ -82,3 +82,36 @@ Repeated requests are retained rather than overwritten.
 **Uniqueness:** No request-level uniqueness constraint is applied because repeated API requests must be retained.
 
 **Coordinate fields:** `latitude` and `longitude` are nullable because a geocoding response can have no coordinates. `coordinate_source` records whether coordinates came from the API, the fallback coordinate table, or were absent.
+
+---
+### `raw_air_pollution_responses`
+
+Stores raw responses from the air pollution API, including the city context, coordinates used for the request, and requested time window.
+
+Repeated requests are retained rather than overwritten.
+
+| Column                          | PostgreSQL Type    | Required | Key / Constraint                         | Description                                |
+| ------------------------------- | ------------------ | -------: | ---------------------------------------- | ------------------------------------------ |
+| `raw_air_pollution_response_id` | `BIGSERIAL`        |      Yes | **PK**                                   | Unique identifier for the stored response  |
+| `pipeline_run_id`               | `BIGINT`           |      Yes | **FK** → `pipeline_runs.pipeline_run_id` | Pipeline run that generated the response   |
+| `city_id`                       | `TEXT`             |      Yes | **FK** → `cities.city_id`                | Stable city identifier                     |
+| `city_name`                     | `TEXT`             |      Yes | —                                        | City name included in the response context |
+| `country_code`                  | `CHAR(2)`          |      Yes | —                                        | ISO country code                           |
+| `state_code`                    | `TEXT`             |       No | —                                        | State/province code when available         |
+| `latitude`                      | `DOUBLE PRECISION` |      Yes | `-90–90`                                 | Latitude used for the API request          |
+| `longitude`                     | `DOUBLE PRECISION` |      Yes | `-180–180`                               | Longitude used for the API request         |
+| `start`                         | `TIMESTAMPTZ`      |      Yes | —                                        | Start of the requested UTC time window     |
+| `end`                           | `TIMESTAMPTZ`      |      Yes | `>= start`                               | End of the requested UTC time window       |
+| `endpoint`                      | `TEXT`             |      Yes | —                                        | API endpoint used                          |
+| `retrieved_at`                  | `TIMESTAMPTZ`      |      Yes | —                                        | UTC time when the response was received    |
+| `http_status`                   | `INTEGER`          |       No | `100–599`                                | HTTP response status                       |
+| `payload`                       | `JSONB`            |      Yes | —                                        | Original raw API response                  |
+
+**Uniqueness:** No request-level uniqueness constraint is applied because repeated API requests must be retained.
+
+**Location fields:** `latitude` and `longitude` record the coordinates actually used in the air pollution API request, making the stored response self-describing without requiring a lookup against the geocoding response.
+
+**Request window:** `start` and `end` record the UTC time range requested for the API call.
+
+**Timestamp:** `retrieved_at` is supplied by the extract layer and represents the time the response was received. It does not use a database default because database insertion time may differ from response-retrieval time.
+
