@@ -56,3 +56,29 @@ Tracks each execution of the pipeline.
 | `created_at`         | `TIMESTAMPTZ`   |      Yes | Default `NOW()`                  | Time the pipeline run was created        |
 
 ---
+
+### `raw_geocoding_responses`
+
+Stores raw responses from the geocoding API, including the location context and coordinates produced by the geocoding step.
+
+Repeated requests are retained rather than overwritten.
+
+| Column                      | PostgreSQL Type    | Required | Key / Constraint                         | Description                                     |
+| --------------------------- | ------------------ | -------: | ---------------------------------------- | ----------------------------------------------- |
+| `raw_geocoding_response_id` | `BIGSERIAL`        |      Yes | **PK**                                   | Unique identifier for the stored response       |
+| `pipeline_run_id`           | `BIGINT`           |      Yes | **FK** → `pipeline_runs.pipeline_run_id` | Pipeline run that generated the response        |
+| `city_id`                   | `TEXT`             |      Yes | **FK** → `cities.city_id`                | Stable city identifier                          |
+| `city_name`                 | `TEXT`             |      Yes | —                                        | City name included in the response context      |
+| `country_code`              | `CHAR(2)`          |      Yes | —                                        | ISO country code                                |
+| `state_code`                | `TEXT`             |       No | —                                        | State/province code when available              |
+| `latitude`                  | `DOUBLE PRECISION` |       No | `-90–90`                                 | Latitude returned by the API or fallback table  |
+| `longitude`                 | `DOUBLE PRECISION` |       No | `-180–180`                               | Longitude returned by the API or fallback table |
+| `coordinate_source`         | `TEXT`             |      Yes | `geocoded`, `fallback`, `absent`         | Source of the coordinates                       |
+| `endpoint`                  | `TEXT`             |      Yes | —                                        | API endpoint used                               |
+| `retrieved_at`              | `TIMESTAMPTZ`      |      Yes | —                                        | UTC time when the response was received         |
+| `http_status`               | `INTEGER`          |       No | `100–599`                                | HTTP response status                            |
+| `payload`                   | `JSONB`            |      Yes | —                                        | Original raw API response                       |
+
+**Uniqueness:** No request-level uniqueness constraint is applied because repeated API requests must be retained.
+
+**Coordinate fields:** `latitude` and `longitude` are nullable because a geocoding response can have no coordinates. `coordinate_source` records whether coordinates came from the API, the fallback coordinate table, or were absent.
