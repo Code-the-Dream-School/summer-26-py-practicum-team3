@@ -25,6 +25,7 @@ def make_record(**overrides):
         "nh3": 0.12,
         "run_id": "run-2024-07-03-001",
         "pipeline_run_id": "pipeline-2024-07-03-001",
+        "retrieved_at": "2024-07-04T00:00:00Z",
     }
 
     record.update(overrides)
@@ -53,13 +54,14 @@ def test_new_record_is_inserted():
     assert parameters == record
 
 
-def test_existing_record_uses_upsert():
+def test_upsert_sql_includes_conflict_update():
     cursor = FakeCursor()
     record = make_record()
 
     upsert_air_quality_record(cursor, record)
 
     assert len(cursor.executed) == 1
+    assert "ON CONFLICT (city_id, observed_at)" in cursor.executed[0][0]
     assert "DO UPDATE SET" in cursor.executed[0][0]
 
 
