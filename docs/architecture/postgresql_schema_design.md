@@ -198,3 +198,98 @@ Stores transformed and validated air pollution observations.
 | `raw_air_pollution_responses` | `city_id`         | FK           | `cities`        | `city_id`         |
 | `air_pollution_gold`          | `pipeline_run_id` | FK           | `pipeline_runs` | `pipeline_run_id` |
 | `air_pollution_gold`          | `city_id`         | FK           | `cities`        | `city_id`         |
+
+## Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    CITIES {
+        TEXT city_id PK
+        TEXT city_name
+        CHAR2 country_code
+        TEXT state_code
+        TEXT timezone
+        BOOLEAN active
+    }
+
+    PIPELINE_RUNS {
+        BIGSERIAL pipeline_run_id PK
+        TEXT run_id UK
+        TEXT source
+        INTEGER history_hours
+        TIMESTAMPTZ window_start_utc
+        TIMESTAMPTZ window_end_utc
+        TEXT status
+        INTEGER city_count
+        INTEGER raw_response_count
+        INTEGER gold_row_count
+        TEXT error_message
+        TIMESTAMPTZ finished_at
+        TIMESTAMPTZ created_at
+    }
+
+    RAW_GEOCODING_RESPONSES {
+        BIGSERIAL raw_geocoding_response_id PK
+        BIGINT pipeline_run_id FK
+        TEXT city_id FK
+        TEXT city_name
+        CHAR2 country_code
+        TEXT state_code
+        DOUBLE latitude
+        DOUBLE longitude
+        TEXT coordinate_source
+        TEXT endpoint
+        TIMESTAMPTZ retrieved_at
+        INTEGER http_status
+        JSONB payload
+    }
+
+    RAW_AIR_POLLUTION_RESPONSES {
+        BIGSERIAL raw_air_pollution_response_id PK
+        BIGINT pipeline_run_id FK
+        TEXT city_id FK
+        TEXT city_name
+        CHAR2 country_code
+        TEXT state_code
+        DOUBLE latitude
+        DOUBLE longitude
+        TIMESTAMPTZ start
+        TIMESTAMPTZ end
+        TEXT endpoint
+        TIMESTAMPTZ retrieved_at
+        INTEGER http_status
+        JSONB payload
+    }
+
+    AIR_POLLUTION_GOLD {
+        TEXT city_id PK, FK
+        TEXT city_name
+        CHAR2 country_code
+        TEXT state_code
+        TEXT run_id
+        BIGINT pipeline_run_id FK
+        TIMESTAMPTZ observed_at PK
+        INTEGER aqi
+        TEXT aqi_label
+        DOUBLE pm2_5
+        DOUBLE pm10
+        DOUBLE co
+        DOUBLE no
+        DOUBLE no2
+        DOUBLE o3
+        DOUBLE so2
+        DOUBLE nh3
+        DOUBLE latitude
+        DOUBLE longitude
+        TIMESTAMPTZ retrieved_at
+    }
+
+    CITIES ||--o{ RAW_GEOCODING_RESPONSES : "has"
+    PIPELINE_RUNS ||--o{ RAW_GEOCODING_RESPONSES : "generates"
+
+    CITIES ||--o{ RAW_AIR_POLLUTION_RESPONSES : "has"
+    PIPELINE_RUNS ||--o{ RAW_AIR_POLLUTION_RESPONSES : "generates"
+
+    CITIES ||--o{ AIR_POLLUTION_GOLD : "has observations"
+    PIPELINE_RUNS ||--o{ AIR_POLLUTION_GOLD : "produces"
+```
