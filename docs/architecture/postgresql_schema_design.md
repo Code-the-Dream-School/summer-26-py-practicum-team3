@@ -115,3 +115,31 @@ Repeated requests are retained rather than overwritten.
 
 **Timestamp:** `retrieved_at` is supplied by the extract layer and represents the time the response was received. It does not use a database default because database insertion time may differ from response-retrieval time.
 
+### `air_pollution_gold`
+
+Stores transformed and validated air pollution observations.
+
+**Grain:** One row per city per observation.
+
+| Column         | PostgreSQL Type    | Required | Key / Constraint              | Description                           |
+| -------------- | ------------------ | -------: | ----------------------------- | ------------------------------------- |
+| `city_id`      | `TEXT`             |      Yes | **PK, FK** → `cities.city_id` | City associated with the observation  |
+| `observed_at`  | `TIMESTAMPTZ`      |      Yes | **PK**                        | Time of the air pollution observation |
+| `aqi`          | `INTEGER`          |      Yes | `1–5`                         | Air Quality Index                     |
+| `pm2_5`        | `DOUBLE PRECISION` |      Yes | `>= 0`                        | PM2.5 concentration                   |
+| `pm10`         | `DOUBLE PRECISION` |      Yes | `>= 0`                        | PM10 concentration                 
+   |
+| `co`           | `DOUBLE PRECISION` |      Yes | `>= 0`                        | Carbon monoxide concentration         |
+| `no2`          | `DOUBLE PRECISION` |      Yes | `>= 0`                        | Nitrogen dioxide concentration        |
+| `o3`           | `DOUBLE PRECISION` |      Yes | `>= 0`                        | Ozone concentration                   |
+| `so2`          | `DOUBLE PRECISION` |      Yes | `>= 0`                        | Sulfur dioxide concentration          |
+| `latitude`     | `DOUBLE PRECISION` |      Yes | `-90–90`                      | Geographic latitude                   |
+| `longitude`    | `DOUBLE PRECISION` |      Yes | `-180–180`                    | Geographic longitude                  |
+| `retrieved_at` | `TIMESTAMPTZ`      |       No | —                             | Time the data was retrieved           |
+
+**Primary key:** `(city_id, observed_at)`
+
+`retrieved_at` is nullable because it is not currently produced by the transform output and is subject to confirmation in AIR-19.
+
+---
+
