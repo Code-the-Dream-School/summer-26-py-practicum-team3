@@ -71,8 +71,8 @@ Repeated requests are retained rather than overwritten.
 | `city_name`                 | `TEXT`             |      Yes | —                                        | City name included in the response context      |
 | `country_code`              | `CHAR(2)`          |      Yes | —                                        | ISO country code                                |
 | `state_code`                | `TEXT`             |       No | —                                        | State/province code when available              |
-| `latitude`                  | `DOUBLE PRECISION` |       No | `-90–90`                                 | Latitude returned by the API or fallback table  |
-| `longitude`                 | `DOUBLE PRECISION` |       No | `-180–180`                               | Longitude returned by the API or fallback table |
+| `lat`                       | `DOUBLE PRECISION` |       No | `-90–90`                                 | Latitude returned by the API or fallback table  |
+| `lon`                       | `DOUBLE PRECISION` |       No | `-180–180`                               | Longitude returned by the API or fallback table |
 | `coordinate_source`         | `TEXT`             |      Yes | `geocoded`, `fallback`, `absent`         | Source of the coordinates                       |
 | `endpoint`                  | `TEXT`             |      Yes | —                                        | API endpoint used                               |
 | `retrieved_at`              | `TIMESTAMPTZ`      |      Yes | —                                        | UTC time when the response was received         |
@@ -81,7 +81,7 @@ Repeated requests are retained rather than overwritten.
 
 **Uniqueness:** No request-level uniqueness constraint is applied because repeated API requests must be retained.
 
-**Coordinate fields:** `latitude` and `longitude` are nullable because a geocoding response can have no coordinates. `coordinate_source` records whether coordinates came from the API, the fallback coordinate table, or were absent.
+**Coordinate fields:** `lat` and `lon` are nullable because a geocoding response can have no coordinates. `coordinate_source` records whether coordinates came from the API, the fallback coordinate table, or were absent.
 
 ---
 
@@ -99,8 +99,8 @@ Repeated requests are retained rather than overwritten.
 | `city_name`                     | `TEXT`             |      Yes | —                                        | City name included in the response context |
 | `country_code`                  | `CHAR(2)`          |      Yes | —                                        | ISO country code                           |
 | `state_code`                    | `TEXT`             |       No | —                                        | State/province code when available         |
-| `latitude`                      | `DOUBLE PRECISION` |      Yes | `-90–90`                                 | Latitude used for the API request          |
-| `longitude`                     | `DOUBLE PRECISION` |      Yes | `-180–180`                               | Longitude used for the API request         |
+| `lat`                           | `DOUBLE PRECISION` |      Yes | `-90–90`                                 | Latitude used for the API request          |
+| `lon`                           | `DOUBLE PRECISION` |      Yes | `-180–180`                               | Longitude used for the API request         |
 | `start`                         | `TIMESTAMPTZ`      |      Yes | —                                        | Start of the requested UTC time window     |
 | `end`                           | `TIMESTAMPTZ`      |      Yes | `>= start`                               | End of the requested UTC time window       |
 | `endpoint`                      | `TEXT`             |      Yes | —                                        | API endpoint used                          |
@@ -110,7 +110,7 @@ Repeated requests are retained rather than overwritten.
 
 **Uniqueness:** No request-level uniqueness constraint is applied because repeated API requests must be retained.
 
-**Location fields:** `latitude` and `longitude` record the coordinates actually used in the air pollution API request, making the stored response self-describing without requiring a lookup against the geocoding response.
+**Location fields:** `lat` and `lon` record the coordinates actually used in the air pollution API request, making the stored response self-describing without requiring a lookup against the geocoding response.
 
 **Request window:** `start` and `end` record the UTC time range requested for the API call.
 
@@ -143,8 +143,8 @@ Stores transformed and validated air pollution observations.
 | `o3`              | `DOUBLE PRECISION` |      Yes | `>= 0`                                   | Ozone concentration                      |
 | `so2`             | `DOUBLE PRECISION` |      Yes | `>= 0`                                   | Sulfur dioxide concentration             |
 | `nh3`             | `DOUBLE PRECISION` |      Yes | `>= 0`                                   | Ammonia concentration                    |
-| `latitude`        | `DOUBLE PRECISION` |      Yes | `-90–90`                                 | Geographic latitude                      |
-| `longitude`       | `DOUBLE PRECISION` |      Yes | `-180–180`                               | Geographic longitude                     |
+| `lat`             | `DOUBLE PRECISION` |      Yes | `-90–90`                                 | Geographic latitude                      |
+| `lon`             | `DOUBLE PRECISION` |      Yes | `-180–180`                               | Geographic longitude                     |
 | `retrieved_at`    | `TIMESTAMPTZ`      |       No | —                                        | Time the data was retrieved              |
 
 **Primary key:** `(city_id, observed_at)`
@@ -162,8 +162,8 @@ Stores transformed and validated air pollution observations.
 | `cities`                      | `city_id`                       | None                                                                                | `city_id`, `city_name`, `country_code`, `timezone`, `active`                                                                                                                            | `(city_name, country_code, state_code)` with `NULL` treated as empty |
 | `pipeline_runs`               | `pipeline_run_id`               | None                                                                                | `run_id`, `source`, `history_hours`, `window_start_utc`, `window_end_utc`, `status`, `city_count`, `raw_response_count`, `gold_row_count`, `created_at`                                 | `run_id`                                                             |
 | `raw_geocoding_responses`     | `raw_geocoding_response_id`     | `pipeline_run_id` → `pipeline_runs.pipeline_run_id`<br>`city_id` → `cities.city_id` | `pipeline_run_id`, `city_id`, `city_name`, `country_code`, `coordinate_source`, `endpoint`, `retrieved_at`, `payload`                                                                   | None                                                                 |
-| `raw_air_pollution_responses` | `raw_air_pollution_response_id` | `pipeline_run_id` → `pipeline_runs.pipeline_run_id`<br>`city_id` → `cities.city_id` | `pipeline_run_id`, `city_id`, `city_name`, `country_code`, `latitude`, `longitude`, `start`, `end`, `endpoint`, `retrieved_at`, `payload`                                               | None                                                                 |
-| `air_pollution_gold`          | `(city_id, observed_at)`        | `pipeline_run_id` → `pipeline_runs.pipeline_run_id`<br>`city_id` → `cities.city_id` | `city_id`, `city_name`, `country_code`, `run_id`, `pipeline_run_id`, `observed_at`, `aqi`, `aqi_label`, `pm2_5`, `pm10`, `co`, `no`, `no2`, `o3`, `so2`, `nh3`, `latitude`, `longitude` | None                                                                 |
+| `raw_air_pollution_responses` | `raw_air_pollution_response_id` | `pipeline_run_id` → `pipeline_runs.pipeline_run_id`<br>`city_id` → `cities.city_id` | `pipeline_run_id`, `city_id`, `city_name`, `country_code`, `lat`, `lon`, `start`, `end`, `endpoint`, `retrieved_at`, `payload`                                               | None                                                                 |
+| `air_pollution_gold`          | `(city_id, observed_at)`        | `pipeline_run_id` → `pipeline_runs.pipeline_run_id`<br>`city_id` → `cities.city_id` | `city_id`, `city_name`, `country_code`, `run_id`, `pipeline_run_id`, `observed_at`, `aqi`, `aqi_label`, `pm2_5`, `pm10`, `co`, `no`, `no2`, `o3`, `so2`, `nh3`, `lat`, `lon` | None                                                                 |
 
 ### Check Constraints
 
@@ -176,17 +176,17 @@ Stores transformed and validated air pollution observations.
 | `pipeline_runs`               | `raw_response_count`     | Must be greater than or equal to `0`                                                            |
 | `pipeline_runs`               | `gold_row_count`         | Must be greater than or equal to `0`                                                            |
 | `raw_geocoding_responses`     | `coordinate_source`      | Must be `geocoded`, `fallback`, or `absent`                                                     |
-| `raw_geocoding_responses`     | `latitude`               | Must be between `-90` and `90` when present                                                     |
-| `raw_geocoding_responses`     | `longitude`              | Must be between `-180` and `180` when present                                                   |
+| `raw_geocoding_responses`     | `lat`                    | Must be between `-90` and `90` when present                                                     |
+| `raw_geocoding_responses`     | `lon`                    | Must be between `-180` and `180` when present                                                   |
 | `raw_geocoding_responses`     | `http_status`            | Must be between `100` and `599` when present                                                    |
-| `raw_air_pollution_responses` | `latitude`               | Must be between `-90` and `90`                                                                  |
-| `raw_air_pollution_responses` | `longitude`              | Must be between `-180` and `180`                                                                |
+| `raw_air_pollution_responses` | `lat`                    | Must be between `-90` and `90`                                                                  |
+| `raw_air_pollution_responses` | `lon`                    | Must be between `-180` and `180`                                                                |
 | `raw_air_pollution_responses` | `end`                    | Must be greater than or equal to `start`                                                        |
 | `raw_air_pollution_responses` | `http_status`            | Must be between `100` and `599` when present                                                    |
 | `air_pollution_gold`          | `aqi`                    | Must be between `1` and `5`                                                                     |
 | `air_pollution_gold`          | Pollutant concentrations | `pm2_5`, `pm10`, `co`, `no`, `no2`, `o3`, `so2`, and `nh3` must be greater than or equal to `0` |
-| `air_pollution_gold`          | `latitude`               | Must be between `-90` and `90`                                                                  |
-| `air_pollution_gold`          | `longitude`              | Must be between `-180` and `180`                                                                |
+| `air_pollution_gold`          | `lat`               | Must be between `-90` and `90`                                                                  |
+| `air_pollution_gold`          | `lon`              | Must be between `-180` and `180`                                                                |
 
 ### Relationships
 
@@ -235,8 +235,8 @@ erDiagram
         TEXT city_name
         CHAR2 country_code
         TEXT state_code
-        DOUBLE latitude
-        DOUBLE longitude
+        DOUBLE lat
+        DOUBLE lon
         TEXT coordinate_source
         TEXT endpoint
         TIMESTAMPTZ retrieved_at
@@ -251,8 +251,8 @@ erDiagram
         TEXT city_name
         CHAR2 country_code
         TEXT state_code
-        DOUBLE latitude
-        DOUBLE longitude
+        DOUBLE lat
+        DOUBLE lon
         TIMESTAMPTZ start
         TIMESTAMPTZ end
         TEXT endpoint
@@ -279,8 +279,8 @@ erDiagram
         DOUBLE o3
         DOUBLE so2
         DOUBLE nh3
-        DOUBLE latitude
-        DOUBLE longitude
+        DOUBLE lat
+        DOUBLE lon
         TIMESTAMPTZ retrieved_at
     }
 
@@ -374,8 +374,8 @@ CREATE TABLE raw_geocoding_responses (
     city_name                 TEXT NOT NULL,
     country_code              CHAR(2) NOT NULL,
     state_code                TEXT,
-    latitude                  DOUBLE PRECISION,
-    longitude                 DOUBLE PRECISION,
+    lat                       DOUBLE PRECISION,
+    lon                       DOUBLE PRECISION,
     coordinate_source         TEXT NOT NULL,
     endpoint                  TEXT NOT NULL,
     retrieved_at              TIMESTAMPTZ NOT NULL,
@@ -395,16 +395,16 @@ CREATE TABLE raw_geocoding_responses (
             coordinate_source IN ('geocoded', 'fallback', 'absent')
         ),
 
-    CONSTRAINT raw_geocoding_latitude_valid
+    CONSTRAINT raw_geocoding_lat_valid
         CHECK (
-            latitude IS NULL
-            OR latitude BETWEEN -90 AND 90
+            lat IS NULL
+            OR lat BETWEEN -90 AND 90
         ),
 
-    CONSTRAINT raw_geocoding_longitude_valid
+    CONSTRAINT raw_geocoding_lon_valid
         CHECK (
-            longitude IS NULL
-            OR longitude BETWEEN -180 AND 180
+            lon IS NULL
+            OR lon BETWEEN -180 AND 180
         ),
 
     CONSTRAINT raw_geocoding_http_status_valid
@@ -422,8 +422,8 @@ CREATE TABLE raw_air_pollution_responses (
     city_name                     TEXT NOT NULL,
     country_code                  CHAR(2) NOT NULL,
     state_code                    TEXT,
-    latitude                      DOUBLE PRECISION NOT NULL,
-    longitude                     DOUBLE PRECISION NOT NULL,
+    lat                           DOUBLE PRECISION NOT NULL,
+    lon                           DOUBLE PRECISION NOT NULL,
     start                         TIMESTAMPTZ NOT NULL,
     "end"                         TIMESTAMPTZ NOT NULL,
     endpoint                      TEXT NOT NULL,
@@ -439,11 +439,11 @@ CREATE TABLE raw_air_pollution_responses (
         FOREIGN KEY (city_id)
         REFERENCES cities (city_id),
 
-    CONSTRAINT raw_air_pollution_latitude_valid
-        CHECK (latitude BETWEEN -90 AND 90),
+    CONSTRAINT raw_air_pollution_lat_valid
+        CHECK (lat BETWEEN -90 AND 90),
 
-    CONSTRAINT raw_air_pollution_longitude_valid
-        CHECK (longitude BETWEEN -180 AND 180),
+    CONSTRAINT raw_air_pollution_lon_valid
+        CHECK (lon BETWEEN -180 AND 180),
 
     CONSTRAINT raw_air_pollution_window_valid
         CHECK ("end" >= start),
@@ -474,8 +474,8 @@ CREATE TABLE air_pollution_gold (
     o3              DOUBLE PRECISION NOT NULL,
     so2             DOUBLE PRECISION NOT NULL,
     nh3             DOUBLE PRECISION NOT NULL,
-    latitude        DOUBLE PRECISION NOT NULL,
-    longitude       DOUBLE PRECISION NOT NULL,
+    lat             DOUBLE PRECISION NOT NULL,
+    lon             DOUBLE PRECISION NOT NULL,
     retrieved_at    TIMESTAMPTZ,
 
     CONSTRAINT air_pollution_gold_pk
@@ -516,11 +516,11 @@ CREATE TABLE air_pollution_gold (
     CONSTRAINT air_pollution_gold_nh3_valid
         CHECK (nh3 >= 0),
 
-    CONSTRAINT air_pollution_gold_latitude_valid
-        CHECK (latitude BETWEEN -90 AND 90),
+    CONSTRAINT air_pollution_gold_lat_valid
+        CHECK (lat BETWEEN -90 AND 90),
 
-    CONSTRAINT air_pollution_gold_longitude_valid
-        CHECK (longitude BETWEEN -180 AND 180)
+    CONSTRAINT air_pollution_gold_lon_valid
+        CHECK (lon BETWEEN -180 AND 180)
 );
 
 
