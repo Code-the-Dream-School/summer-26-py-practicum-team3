@@ -18,8 +18,7 @@ INSERT INTO air_pollution_gold (
     pm10,
     nh3,
     run_id,
-    pipeline_run_id,
-    retrieved_at
+    pipeline_run_id
 )
 VALUES (
     %(city_id)s,
@@ -40,8 +39,7 @@ VALUES (
     %(pm10)s,
     %(nh3)s,
     %(run_id)s,
-    %(pipeline_run_id)s,
-    %(retrieved_at)s
+    %(pipeline_run_id)s
 )
 ON CONFLICT (city_id, observed_at)
 DO UPDATE SET
@@ -61,8 +59,7 @@ DO UPDATE SET
     pm10 = EXCLUDED.pm10,
     nh3 = EXCLUDED.nh3,
     run_id = EXCLUDED.run_id,
-    pipeline_run_id = EXCLUDED.pipeline_run_id,
-    retrieved_at = EXCLUDED.retrieved_at;
+    pipeline_run_id = EXCLUDED.pipeline_run_id
 """
 
 def upsert_air_quality_record(cursor, record):
