@@ -1,9 +1,19 @@
 from datetime import datetime, timezone
 
+from .operations import (
+    build_air_quality_record,
+    dedupe_records,
+    filter_valid_records,
+)
+
 def transform_raw_response(raw_response):
     """
     Transform one RawResponse envelope into a list of clean
     air-quality observation records.
+
+    The function does not call the API or write to the database.
+    It only converts the supplied raw response into the agreed
+    clean record shape.
 
     One observation in payload["list"] becomes one output record.
     """
@@ -29,7 +39,18 @@ def transform_raw_response(raw_response):
     if not observations:
         return []
 
-    seen_observed_at = set()
+    # Build the context shared by all observations in this response.
+    context = {
+        "city_id": raw_response.get("city_id"),
+        "city_name": raw_response.get("city_name"),
+        "country_code": raw_response.get("country_code"),
+        "state_code": raw_response.get("state_code"),
+        "lat": raw_response.get("lat"),
+        "lon": raw_response.get("lon"),
+        "run_id": raw_response.get("run_id"),
+        "pipeline_run_id": raw_response.get("pipeline_run_id"),
+    }
+    
     records = []
 
     for observation in observations:
@@ -37,122 +58,22 @@ def transform_raw_response(raw_response):
             continue
 
         # Required location/context fields
-        city_id = raw_response.get("city_id")
-        lat = raw_response.get("lat")
-        lon = raw_response.get("lon")
+        record = build_air_quality_record(
+            observation,
+            context,
+        )
 
-        if city_id is None or lat is None or lon is None:
-            raise ValueError("Required location/context field is missing")
+         # Remove records that are missing required normalized fields.
+    records = filter_valid_records(records)
 
-        # Required observation timestamp
-        dt = observation.get("dt")
-
-        if dt is None:
-            raise ValueError("Required observation timestamp is missing")
-
-        try:
-            observed_at = datetime.fromtimestamp(
-                int(dt),
-                tz=timezone.utc,
-            )
-            
-        except (TypeError, ValueError, OSError) as exc:
-            raise ValueError("Invalid observation timestamp") from exc
-        
-        if observed_at in seen_observed_at:
-            continue
-
-        seen_observed_at.add(observed_at)
-
-        # Coordinates
-        try:
-            lat = float(lat)
-            lon = float(lon)
-        except (TypeError, ValueError):
-            continue
-
-        if not (-90 <= lat <= 90):
-            continue
-
-        if not (-180 <= lon <= 180):
-            continue
-
-        # AQI
-        main = observation.get("main") or {}
-
-        try:
-            aqi = int(main.get("aqi"))
-        except (TypeError, ValueError) as exc:
-            raise ValueError("Invalid AQI value") from exc
-
-        if aqi not in (1, 2, 3, 4, 5):
-            raise ValueError("AQI must be between 1 and 5")
-
-        aqi_labels = {
-            1: "Good",
-            2: "Fair",
-            3: "Moderate",
-            4: "Poor",
-            5: "Very Poor",
-        }
-
-        # Pollutants
-        components = observation.get("components") or {}
-
-        clean_components = {}
-
-        for field in (
-            "co",
-            "no",
-            "no2",
-            "o3",
-            "so2",
-            "pm2_5",
-            "pm10",
-            "nh3",
-        ):
-            value = components.get(field)
-
-            if value is None:
-                clean_components[field] = None
-                continue
-
-            try:
-                value = float(value)
-            except (TypeError, ValueError):
-                clean_components[field] = None
-                continue
-
-            if value < 0:
-                clean_components[field] = None
-            else:
-                clean_components[field] = round(value, 2)
-
-        # Text cleanup
-        def clean_text(value):
-            if value is None:
-                return None
-
-            value = str(value).strip()
-
-            return value if value else None
-
-        record = {
-            "city_id": city_id,
-            "city_name": clean_text(raw_response.get("city_name")),
-            "country_code": clean_text(raw_response.get("country_code")),
-            "state_code": clean_text(raw_response.get("state_code")),
-            "lat": lat,
-            "lon": lon,
-            "observed_at": observed_at,
-            "aqi": aqi,
-            "aqi_label": aqi_labels[aqi],
-            **clean_components,
-            "run_id": raw_response.get("run_id"),
-            "pipeline_run_id": raw_response.get("pipeline_run_id"),
-            "retrieved_at": raw_response.get("retrieved_at"),
-        }
-
-        records.append(record)
+    # Remove repeated observations using the agreed deduplication rule.
+    #
+    # IMPORTANT:
+    # Use the tiebreaker field specified by the team's contract.
+    records = dedupe_records(
+        records,
+        key_fields=("city_id", "observed_at"),
+        tiebreaker_field="run_id",
+    )
 
     return records
