@@ -1,5 +1,3 @@
-from datetime import datetime, timezone
-
 from .operations import (
     build_air_quality_record,
     dedupe_records,
@@ -62,8 +60,10 @@ def transform_raw_response(raw_response):
             observation,
             context,
         )
+        
+        records.append(record)
 
-         # Remove records that are missing required normalized fields.
+    # Remove records that are missing required normalized fields.
     records = filter_valid_records(records)
 
     # Remove repeated observations using the agreed deduplication rule.
