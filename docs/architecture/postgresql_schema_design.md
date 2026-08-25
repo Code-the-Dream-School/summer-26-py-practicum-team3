@@ -135,14 +135,14 @@ Stores transformed and validated air pollution observations.
 | `observed_at`     | `TIMESTAMPTZ`      |      Yes | **PK**                                   | Time of the air pollution observation    |
 | `aqi`             | `INTEGER`          |      Yes | `1–5`                                    | Air Quality Index                        |
 | `aqi_label`       | `TEXT`             |      Yes | —                                        | Human-readable label for the AQI value   |
-| `pm2_5`           | `DOUBLE PRECISION` |      Yes | `>= 0`                                   | PM2.5 concentration                      |
-| `pm10`            | `DOUBLE PRECISION` |      Yes | `>= 0`                                   | PM10 concentration                       |
-| `co`              | `DOUBLE PRECISION` |      Yes | `>= 0`                                   | Carbon monoxide concentration            |
-| `no`              | `DOUBLE PRECISION` |      Yes | `>= 0`                                   | Nitrogen monoxide              |
-| `no2`             | `DOUBLE PRECISION` |      Yes | `>= 0`                                   | Nitrogen dioxide concentration           |
-| `o3`              | `DOUBLE PRECISION` |      Yes | `>= 0`                                   | Ozone concentration                      |
-| `so2`             | `DOUBLE PRECISION` |      Yes | `>= 0`                                   | Sulfur dioxide concentration             |
-| `nh3`             | `DOUBLE PRECISION` |      Yes | `>= 0`                                   | Ammonia concentration                    |
+| `pm2_5`           | `DOUBLE PRECISION` |      No  | `>= 0`                                   | PM2.5 concentration                      |
+| `pm10`            | `DOUBLE PRECISION` |      No | `>= 0`                                   | PM10 concentration                       |
+| `co`              | `DOUBLE PRECISION` |      No | `>= 0`                                   | Carbon monoxide concentration            |
+| `no`              | `DOUBLE PRECISION` |      No  | `>= 0`                                   | Nitrogen monoxide              |
+| `no2`             | `DOUBLE PRECISION` |      No  | `>= 0`                                   | Nitrogen dioxide concentration           |
+| `o3`              | `DOUBLE PRECISION` |      No  | `>= 0`                                   | Ozone concentration                      |
+| `so2`             | `DOUBLE PRECISION` |      No  | `>= 0`                                   | Sulfur dioxide concentration             |
+| `nh3`             | `DOUBLE PRECISION` |      No  | `>= 0`                                   | Ammonia concentration                    |
 | `lat`             | `DOUBLE PRECISION` |      Yes | `-90–90`                                 | Geographic latitude                      |
 | `lon`             | `DOUBLE PRECISION` |      Yes | `-180–180`                               | Geographic longitude                     |
 | `retrieved_at`    | `TIMESTAMPTZ`      |       No | —                                        | Time the data was retrieved              |
@@ -163,7 +163,7 @@ Stores transformed and validated air pollution observations.
 | `pipeline_runs`               | `pipeline_run_id`               | None                                                                                | `run_id`, `source`, `history_hours`, `window_start_utc`, `window_end_utc`, `status`, `city_count`, `raw_response_count`, `gold_row_count`, `created_at`                                 | `run_id`                                                             |
 | `raw_geocoding_responses`     | `raw_geocoding_response_id`     | `pipeline_run_id` → `pipeline_runs.pipeline_run_id`<br>`city_id` → `cities.city_id` | `pipeline_run_id`, `city_id`, `city_name`, `country_code`, `coordinate_source`, `endpoint`, `retrieved_at`, `payload`                                                                   | None                                                                 |
 | `raw_air_pollution_responses` | `raw_air_pollution_response_id` | `pipeline_run_id` → `pipeline_runs.pipeline_run_id`<br>`city_id` → `cities.city_id` | `pipeline_run_id`, `city_id`, `city_name`, `country_code`, `lat`, `lon`, `start`, `end`, `endpoint`, `retrieved_at`, `payload`                                               | None                                                                 |
-| `air_pollution_gold`          | `(city_id, observed_at)`        | `pipeline_run_id` → `pipeline_runs.pipeline_run_id`<br>`city_id` → `cities.city_id` | `city_id`, `city_name`, `country_code`, `run_id`, `pipeline_run_id`, `observed_at`, `aqi`, `aqi_label`, `pm2_5`, `pm10`, `co`, `no`, `no2`, `o3`, `so2`, `nh3`, `lat`, `lon` | None                                                                 |
+| `air_pollution_gold`          | `(city_id, observed_at)`        | `pipeline_run_id` → `pipeline_runs.pipeline_run_id`<br>`city_id` → `cities.city_id` | `city_id`, `city_name`, `country_code`, `run_id`, `pipeline_run_id`, `observed_at`, `aqi`, `aqi_label`, `lat`, `lon` | None |
 
 ### Check Constraints
 
@@ -184,9 +184,9 @@ Stores transformed and validated air pollution observations.
 | `raw_air_pollution_responses` | `end`                    | Must be greater than or equal to `start`                                                        |
 | `raw_air_pollution_responses` | `http_status`            | Must be between `100` and `599` when present                                                    |
 | `air_pollution_gold`          | `aqi`                    | Must be between `1` and `5`                                                                     |
-| `air_pollution_gold`          | Pollutant concentrations | `pm2_5`, `pm10`, `co`, `no`, `no2`, `o3`, `so2`, and `nh3` must be greater than or equal to `0` |
-| `air_pollution_gold`          | `lat`               | Must be between `-90` and `90`                                                                  |
-| `air_pollution_gold`          | `lon`              | Must be between `-180` and `180`                                                                |
+| `air_pollution_gold`          | Pollutant concentrations | When present, `pm2_5`, `pm10`, `co`, `no`, `no2`, `o3`, `so2`, and `nh3` must be greater than or equal to `0`; `NULL` is allowed |
+| `air_pollution_gold`          | `lat`                    | Must be between `-90` and `90`                                                                  |
+| `air_pollution_gold`          | `lon`                    | Must be between `-180` and `180`                                                                |
 
 ### Relationships
 
@@ -466,16 +466,16 @@ CREATE TABLE air_pollution_gold (
     observed_at     TIMESTAMPTZ NOT NULL,
     aqi             INTEGER NOT NULL,
     aqi_label       TEXT NOT NULL,
-    pm2_5           DOUBLE PRECISION NOT NULL,
-    pm10            DOUBLE PRECISION NOT NULL,
-    co              DOUBLE PRECISION NOT NULL,
-    no              DOUBLE PRECISION NOT NULL,
-    no2             DOUBLE PRECISION NOT NULL,
-    o3              DOUBLE PRECISION NOT NULL,
-    so2             DOUBLE PRECISION NOT NULL,
-    nh3             DOUBLE PRECISION NOT NULL,
-    lat             DOUBLE PRECISION NOT NULL,
-    lon             DOUBLE PRECISION NOT NULL,
+    pm2_5           DOUBLE PRECISION,
+    pm10            DOUBLE PRECISION,
+    co              DOUBLE PRECISION,
+    no              DOUBLE PRECISION,
+    no2             DOUBLE PRECISION,
+    o3              DOUBLE PRECISION,
+    so2             DOUBLE PRECISION,
+    nh3             DOUBLE PRECISION,
+    lat             DOUBLE PRECISION,
+    lon             DOUBLE PRECISION,
     retrieved_at    TIMESTAMPTZ,
 
     CONSTRAINT air_pollution_gold_pk
@@ -493,28 +493,28 @@ CREATE TABLE air_pollution_gold (
         CHECK (aqi BETWEEN 1 AND 5),
 
     CONSTRAINT air_pollution_gold_pm2_5_valid
-        CHECK (pm2_5 >= 0),
+        CHECK (pm2_5 IS NULL OR pm2_5 >= 0),
 
     CONSTRAINT air_pollution_gold_pm10_valid
-        CHECK (pm10 >= 0),
+        CHECK (pm10 IS NULL OR pm10 >= 0),
 
     CONSTRAINT air_pollution_gold_co_valid
-        CHECK (co >= 0),
+        CHECK (co IS NULL OR co >= 0),
 
     CONSTRAINT air_pollution_gold_no_valid
-        CHECK (no >= 0),
+        CHECK (no IS NULL OR no >= 0),
 
     CONSTRAINT air_pollution_gold_no2_valid
-        CHECK (no2 >= 0),
+        CHECK (no2 IS NULL OR no2 >= 0),
 
     CONSTRAINT air_pollution_gold_o3_valid
-        CHECK (o3 >= 0),
+        CHECK (o3 IS NULL OR o3 >= 0),
 
     CONSTRAINT air_pollution_gold_so2_valid
-        CHECK (so2 >= 0),
+        CHECK (so2 IS NULL OR so2 >= 0),
 
     CONSTRAINT air_pollution_gold_nh3_valid
-        CHECK (nh3 >= 0),
+        CHECK (nh3 IS NULL OR nh3 >= 0),
 
     CONSTRAINT air_pollution_gold_lat_valid
         CHECK (lat BETWEEN -90 AND 90),
