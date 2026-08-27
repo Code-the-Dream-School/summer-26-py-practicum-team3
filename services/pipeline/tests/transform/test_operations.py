@@ -429,6 +429,7 @@ def _sample_context():
         "state_code": "CA",
         "lat": 37.7749,
         "lon": -122.4194,
+        "retrieved_at": "2024-07-03T12:27:05Z",
         "run_id": "run-2024-07-03-001",
         "pipeline_run_id": "pipeline-2024-07-03-001",
     }
@@ -440,6 +441,7 @@ def test_build_air_quality_record_maps_all_contract_fields(_sample_observation, 
     assert record["city_id"] == "us-san-francisco-ca"
     assert record["city_name"] == "San Francisco"  # normalize_text strips whitespace
     assert record["observed_at"] == datetime(2024, 7, 3, 9, 46, 40, tzinfo=timezone.utc)
+    assert record["retrieved_at"] == "2024-07-03T12:27:05Z"
     assert record["aqi"] == 2
     assert record["co"] == 201.94
     assert record["run_id"] == "run-2024-07-03-001"
@@ -527,3 +529,11 @@ def test_filter_valid_records_processes_mixed_batch(_sample_observation, _sample
     result = filter_valid_records([valid, invalid])
 
     assert result == [valid]
+    
+def test_filter_valid_records_drops_record_with_missing_retrieved_at(_sample_observation, _sample_context):
+    _sample_context["retrieved_at"] = None
+    record = build_air_quality_record(_sample_observation, _sample_context)
+
+    result = filter_valid_records([record])
+
+    assert result == []
