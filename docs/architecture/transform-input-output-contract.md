@@ -99,10 +99,11 @@ The following fields are carried from the raw response to every transformed reco
 * `state_code`, when available
 * `lat`
 * `lon`
+* `retrieved_at`
 * `run_id`
 * `pipeline_run_id`
 
-The API metadata and retrieval information remain part of the raw response context and are not required to be repeated on every clean observation record unless a downstream requirement is added later.
+The API metadata remains part of the raw response context, while retrieved_at is carried into every clean observation record to preserve retrieval lineage.
 
 `city_id` is the primary location identifier used by Transform. The transformed record must not depend on the city name being unique.
 
@@ -158,6 +159,7 @@ Each observation in `payload.list` is flattened into a clean application record.
 | `RawResponse.state_code`           | `state_code`      | State/region code when available.                  |
 | `RawResponse.lat`                  | `lat`             | Latitude used for extraction.                      |
 | `RawResponse.lon`                  | `lon`             | Longitude used for extraction.                     |
+| `RawResponse.retrieved_at`        | `retrieved_at`    | UTC time when the API response was received. |
 | `RawResponse.run_id`               | `run_id`          | Pipeline run identifier.                           |
 | `RawResponse.pipeline_run_id`      | `pipeline_run_id` | Pipeline execution identifier.                     |
 
@@ -200,6 +202,7 @@ Each output record contains the location context and exactly one observation's m
   "state_code": "CA",
   "lat": 37.7749,
   "lon": -122.4194,
+  "retrieved_at": "2024-07-03T12:27:05Z",
   "observed_at": "2024-07-03T12:26:40Z",
   "aqi": 2,
   "aqi_label": "Fair",
@@ -308,6 +311,7 @@ AirQualityRecord[]
     ├── city identity
     ├── coordinates
     ├── observed_at
+    ├── retrieved_at
     ├── AQI
     ├── pollutant measurements
     └── pipeline lineage

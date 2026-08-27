@@ -145,11 +145,11 @@ Stores transformed and validated air pollution observations.
 | `nh3`             | `DOUBLE PRECISION` |      No  | `>= 0`                                   | Ammonia concentration                    |
 | `lat`             | `DOUBLE PRECISION` |      Yes | `-90–90`                                 | Geographic latitude                      |
 | `lon`             | `DOUBLE PRECISION` |      Yes | `-180–180`                               | Geographic longitude                     |
-| `retrieved_at`    | `TIMESTAMPTZ`      |       No | —                                        | Time the data was retrieved              |
+| `retrieved_at`    | `TIMESTAMPTZ`      |      Yes | `>= observed_at`                          | Time the data was retrieved |             |
 
 **Primary key:** `(city_id, observed_at)`
 
-`retrieved_at` is nullable because it is not currently produced by the transform output and is subject to confirmation in AIR-19.
+`retrieved_at` is carried through from the raw response via the transform stage's Extraction Context and must be greater than or equal to observed_at.
 
 `pipeline_run_id` references the database pipeline run record, while `run_id` preserves the pipeline run identifier required by the transform contract.
 
@@ -163,7 +163,7 @@ Stores transformed and validated air pollution observations.
 | `pipeline_runs`               | `pipeline_run_id`               | None                                                                                | `run_id`, `source`, `history_hours`, `window_start_utc`, `window_end_utc`, `status`, `city_count`, `raw_response_count`, `gold_row_count`, `created_at`                                 | `run_id`                                                             |
 | `raw_geocoding_responses`     | `raw_geocoding_response_id`     | `pipeline_run_id` → `pipeline_runs.pipeline_run_id`<br>`city_id` → `cities.city_id` | `pipeline_run_id`, `city_id`, `city_name`, `country_code`, `coordinate_source`, `endpoint`, `retrieved_at`, `payload`                                                                   | None                                                                 |
 | `raw_air_pollution_responses` | `raw_air_pollution_response_id` | `pipeline_run_id` → `pipeline_runs.pipeline_run_id`<br>`city_id` → `cities.city_id` | `pipeline_run_id`, `city_id`, `city_name`, `country_code`, `lat`, `lon`, `start`, `end`, `endpoint`, `retrieved_at`, `payload`                                               | None                                                                 |
-| `air_pollution_gold`          | `(city_id, observed_at)`        | `pipeline_run_id` → `pipeline_runs.pipeline_run_id`<br>`city_id` → `cities.city_id` | `city_id`, `city_name`, `country_code`, `run_id`, `pipeline_run_id`, `observed_at`, `aqi`, `aqi_label`, `lat`, `lon` | None |
+| `air_pollution_gold`          | `(city_id, observed_at)`        | `pipeline_run_id` → `pipeline_runs.pipeline_run_id`<br>`city_id` → `cities.city_id` | `city_id`, `city_name`, `country_code`, `run_id`, `pipeline_run_id`, `observed_at`, `aqi`, `aqi_label`, `lat`, `lon`, `retrieved_at` | None |
 
 ### Check Constraints
 
@@ -187,6 +187,7 @@ Stores transformed and validated air pollution observations.
 | `air_pollution_gold`          | Pollutant concentrations | When present, `pm2_5`, `pm10`, `co`, `no`, `no2`, `o3`, `so2`, and `nh3` must be greater than or equal to `0`; `NULL` is allowed |
 | `air_pollution_gold`          | `lat`                    | Must be between `-90` and `90`                                                                  |
 | `air_pollution_gold`          | `lon`                    | Must be between `-180` and `180`                                                                |
+| `air_pollution_gold` | `retrieved_at` | Must be greater than or equal to `observed_at` |
 
 ### Relationships
 
@@ -476,10 +477,13 @@ CREATE TABLE air_pollution_gold (
     nh3             DOUBLE PRECISION,
     lat             DOUBLE PRECISION,
     lon             DOUBLE PRECISION,
-    retrieved_at    TIMESTAMPTZ,
+    retrieved_at    TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT air_pollution_gold_pk
         PRIMARY KEY (city_id, observed_at),
+
+    CONSTRAINT air_pollution_gold_observation_time_valid
+        CHECK (retrieved_at >= observed_at),
 
     CONSTRAINT air_pollution_gold_city_fk
         FOREIGN KEY (city_id)
