@@ -26,7 +26,9 @@ def test_transform_successful_response(load_fixture):
     assert record["observed_at"] == datetime(
         2024, 7, 3, 12, 26, 40, tzinfo=timezone.utc
     )
-
+    assert record["retrieved_at"] == datetime(
+        2024, 7, 3, 12, 27, 5, tzinfo=timezone.utc
+    )
     assert record["aqi"] == 2
     assert record["aqi_label"] == "Fair"
     assert record["co"] == 201.94
@@ -57,6 +59,7 @@ def test_transform_carries_extraction_context_to_every_record(load_fixture):
         assert record["state_code"] == raw_response["state_code"]
         assert record["lat"] == raw_response["lat"]
         assert record["lon"] == raw_response["lon"]
+        assert record["retrieved_at"] == raw_response["retrieved_at"]
         assert record["run_id"] == raw_response["run_id"]
         assert record["pipeline_run_id"] == raw_response["pipeline_run_id"]
 
