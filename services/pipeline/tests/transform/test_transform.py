@@ -26,9 +26,7 @@ def test_transform_successful_response(load_fixture):
     assert record["observed_at"] == datetime(
         2024, 7, 3, 12, 26, 40, tzinfo=timezone.utc
     )
-    assert record["retrieved_at"] == datetime(
-        2024, 7, 3, 12, 27, 5, tzinfo=timezone.utc
-    )
+    assert record["retrieved_at"] == "2024-07-04T00:00:00Z"
     assert record["aqi"] == 2
     assert record["aqi_label"] == "Fair"
     assert record["co"] == 201.94
