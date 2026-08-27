@@ -8,23 +8,6 @@ from pipeline.load.raw import (
 )
 
 
-@pytest.fixture
-def conn():
-    """
-    Creates a fresh connection to the test database.
-    Ensures tables are cleaned before each test.
-    """
-    connection = psycopg.connect("postgresql://localhost:5432/air_test_db")
-    connection.autocommit = True
-
-    with connection.cursor() as cur:
-        cur.execute("DELETE FROM raw_geocoding_responses;")
-        cur.execute("DELETE FROM raw_air_pollution_responses;")
-        cur.execute("DELETE FROM air_pollution_gold;")
-
-    return connection
-
-
 # --- Raw geocoding tests ---
 
 def test_save_raw_geocoding_response_success(conn):

@@ -5,18 +5,6 @@ from datetime import datetime, timezone
 from pipeline.load.storage import save_transformed_records
 
 
-@pytest.fixture
-def conn():
-    """Fresh DB connection + cleanup before each test."""
-    connection = psycopg.connect("postgresql://localhost:5432/air_test_db")
-    connection.autocommit = True
-
-    with connection.cursor() as cur:
-        cur.execute("DELETE FROM air_pollution_gold;")
-
-    return connection
-
-
 def test_save_transformed_records_success(conn):
     now = datetime.now(timezone.utc)
 
