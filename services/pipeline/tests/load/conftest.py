@@ -15,6 +15,10 @@ FAKE_DB = {
     "air_pollution_gold": [],
 }
 
+def reset_fake_db():
+    FAKE_DB["raw_geocoding_responses"].clear()
+    FAKE_DB["raw_air_pollution_responses"].clear()
+    FAKE_DB["air_pollution_gold"].clear()
 
 class FakeCursor:
     def __init__(self):
@@ -102,4 +106,7 @@ class FakeConnection:
 
 @pytest.fixture(autouse=True)
 def conn():
+    print("FAKE_DB before reset:", FAKE_DB)
+    reset_fake_db()
+    print("FAKE_DB before test:", FAKE_DB)
     return FakeConnection()

@@ -2,7 +2,7 @@ import psycopg
 import pytest
 from datetime import datetime, timezone
 
-from pipeline.load.storage import save_transformed_records
+from pipeline.load.gold import save_transformed_records
 
 
 def test_save_transformed_records_success(conn):
