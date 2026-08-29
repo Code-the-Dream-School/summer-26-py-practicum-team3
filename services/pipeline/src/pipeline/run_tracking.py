@@ -14,6 +14,7 @@ from pipeline.common.logging import get_logger
 log = get_logger(__name__)
 
 VALID_STATUSES = {"running", "succeeded", "failed"}
+TERMINAL_STATUSES = {"succeeded", "failed"}
 
 
 @dataclass
@@ -71,6 +72,9 @@ class InMemoryPipelineRunRepository:
         if not run_id or not run_id.strip():
             raise ValueError("run_id cannot be empty.")
 
+        if window_start_utc.tzinfo is None or window_end_utc.tzinfo is None:
+            raise ValueError("window_start_utc and window_end_utc must be timezone-aware (UTC).")
+
         if history_hours <= 0:
             raise ValueError(f"history_hours must be > 0, got {history_hours}.")
 
@@ -113,10 +117,20 @@ class InMemoryPipelineRunRepository:
         return record_id
 
     def update_status(self, run_id: str, update: PipelineRunStatusUpdate) -> None:
-        """Updates pipeline run status with CHECK constraints and partial updates."""
+        """Updates pipeline run status with CHECK constraints, state machine guards, and partial updates."""
         if update.status not in VALID_STATUSES:
             raise ValueError(
                 f"Invalid status '{update.status}'. Must be one of: {VALID_STATUSES}"
+            )
+
+        record = self._runs_store.get(run_id)
+        if not record:
+            log.error("Failed to update status: run_id not found", extra={"run_id": run_id})
+            raise KeyError(f"Pipeline run '{run_id}' not found.")
+
+        if record.status in TERMINAL_STATUSES:
+            raise ValueError(
+                f"Cannot transition run '{run_id}' from terminal status '{record.status}' to '{update.status}'."
             )
 
         for name, val in [
@@ -126,11 +140,6 @@ class InMemoryPipelineRunRepository:
         ]:
             if val is not None and val < 0:
                 raise ValueError(f"{name} must be >= 0, got {val}")
-
-        record = self._runs_store.get(run_id)
-        if not record:
-            log.error("Failed to update status: run_id not found", extra={"run_id": run_id})
-            raise KeyError(f"Pipeline run '{run_id}' not found.")
 
         record.status = update.status
 
@@ -146,7 +155,7 @@ class InMemoryPipelineRunRepository:
         # Explicit finished_at takes precedence; fallback to now() if transitioning to terminal state
         if update.finished_at is not None:
             record.finished_at = update.finished_at
-        elif update.status in ("succeeded", "failed") and record.finished_at is None:
+        elif update.status in TERMINAL_STATUSES and record.finished_at is None:
             record.finished_at = datetime.now(timezone.utc)
 
         log.info(
