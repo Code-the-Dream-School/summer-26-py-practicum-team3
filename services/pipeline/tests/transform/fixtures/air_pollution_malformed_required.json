@@ -12,7 +12,7 @@
   "retrieved_at": "2024-07-04T00:00:00Z",
   "run_id": "run-2024-07-03-001",
   "pipeline_run_id": "pipeline-2024-07-03-001",
-  "status": 200,
+  "status": "ok",
   "payload": {
     "coord": {
       "lon": -122.4194,
