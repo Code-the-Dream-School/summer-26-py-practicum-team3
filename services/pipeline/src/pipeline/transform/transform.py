@@ -55,6 +55,7 @@ def transform_raw_response(raw_response):
         "state_code": raw_response.get("state_code"),
         "lat": raw_response.get("lat"),
         "lon": raw_response.get("lon"),
+        "retrieved_at": raw_response.get("retrieved_at"),
         "run_id": raw_response.get("run_id"),
         "pipeline_run_id": raw_response.get("pipeline_run_id"),
     }

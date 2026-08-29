@@ -2,7 +2,6 @@
 
 from datetime import datetime, timezone
 
-import pytest
 from pipeline.transform.transform import transform_raw_response
 
 
@@ -92,11 +91,12 @@ def test_transform_handles_missing_optional_fields(load_fixture):
 
 
 def test_transform_rejects_missing_required_field(load_fixture):
-    """Raise an error when a required observation field is missing."""
+    """Drop the record when a required observation field is missing."""
     raw_response = load_fixture("air_pollution_missing_required.json")
 
-    with pytest.raises(ValueError):
-        result = transform_raw_response(raw_response)
+    result = transform_raw_response(raw_response)
+
+    assert result == []
 
 
 def test_transform_deduplicates_repeated_timestamps(load_fixture):
@@ -108,8 +108,9 @@ def test_transform_deduplicates_repeated_timestamps(load_fixture):
     assert len(result) == 1
 
 def test_transform_rejects_malformed_required_field(load_fixture):
-    """Raise an error when a required observation field has an invalid value."""
+    """Drop the record when a required observation field has an invalid value."""
     raw_response = load_fixture("air_pollution_malformed_required.json")
 
-    with pytest.raises(ValueError):
-        transform_raw_response(raw_response)
+    result = transform_raw_response(raw_response)
+
+    assert result == []
