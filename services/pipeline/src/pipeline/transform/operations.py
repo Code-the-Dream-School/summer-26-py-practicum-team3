@@ -180,6 +180,7 @@ def build_air_quality_record(
         **normalize_components(observation.get("components")),
         "run_id": context.get("run_id"),
         "pipeline_run_id": context.get("pipeline_run_id"),
+        "retrieved_at": context.get("retrieved_at"),
     }
 
     return record
@@ -187,13 +188,13 @@ def build_air_quality_record(
 
 # --- Rule: required-field enforcement ---
 
-REQUIRED_FIELDS = ("city_id", "observed_at", "lat", "lon", "aqi")
+REQUIRED_FIELDS = ("city_id", "observed_at", "lat", "lon", "aqi", "retrieved_at")
 
 
 def filter_valid_records(records: list[dict]) -> list[dict]:
     """
     Remove records missing any required normalized fields.
-    Only records with non‑None values for city_id, observed_at, lat, lon, and aqi are kept.
+    Only records with non‑None values for city_id, observed_at, lat, lon, aqi, and retrieved_at are kept.
     Optional fields are not validated here.
     """
     return [
