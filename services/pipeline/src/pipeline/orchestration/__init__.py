@@ -81,9 +81,17 @@ def run_transform_stage(raw_records: list[RawAirPollutionRecord]) -> pd.DataFram
 
 
 def run_load_stage(
-    gold_df: pd.DataFrame, gold_dir: Path, table_name: str = "air_pollution_gold"
+    gold_df: pd.DataFrame,
+    gold_dir: Path,
+    run_id: str,
+    table_name: str = "air_pollution_gold",
 ) -> PublishResult:
-    return publish_outputs(gold_df=gold_df, gold_dir=gold_dir, table_name=table_name)
+    return publish_outputs(
+        gold_df=gold_df,
+        gold_dir=gold_dir,
+        run_id=run_id,
+        table_name=table_name,
+    )
 
 
 def run_pipeline_job(source: str = "openweather", history_hours: int | None = None) -> PipelineRunResult:
@@ -151,7 +159,12 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
             "Load stage starting",
             extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "gold_row_count": len(gold_df)},
         )
-        publish_result = run_load_stage(gold_df=gold_df, gold_dir=gold_dir)
+        # Load Stage
+        publish_result = run_load_stage(
+            gold_df=gold_df,
+            gold_dir=gold_dir,
+            run_id=run_id,
+        )
         log.info(
             "Load stage complete",
             extra={
@@ -161,6 +174,7 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
                 "gold_path": str(publish_result.gold_path) if publish_result.gold_path is not None else None,
                 "azure_blob_path": publish_result.azure_blob_path,
                 "rows": publish_result.rows,
+                "parquet_error": publish_result.parquet_error,
             },
         )
 

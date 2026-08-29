@@ -8,7 +8,14 @@ This is a design plan, not a completed implementation. The pipeline does not run
 
 PostgreSQL is the main store for this plan, and every stage below reads or writes it. Table names are the ones we plan to use.
 
-It may not stay the only store. The `PublishResult` type in the orchestration scaffolding carries `gold_path` and `azure_blob_path` next to `postgres_table`, so the load stage may also write a Parquet copy and push it to Azure. That work is not built yet and is out of scope here. This doc should be updated when it lands.
+It may not stay the only store. The `PublishResult` type in the orchestration scaffolding carries `gold_path` and `azure_blob_path` next to `postgres_table`. The Parquet secondary export has landed (see `load/storage.py`); the Azure push has not and remains out of scope here.
+
+The Parquet export is a secondary, archival copy written alongside the primary PostgreSQL write, not a replacement for it. One file is written per pipeline run, named `{run_id}_air_pollution_gold.parquet`, mirroring the per-run naming already used for raw responses (`air_pollution_raw`). If the gold DataFrame for a run is empty, no Parquet file is written; the run's outcome is still recorded in `pipeline_runs` via `gold_row_count=0`, so there is no need for an empty file on disk to prove the run reached the Load stage.
+
+The write is atomic: `publish_outputs()` writes to a temporary `.tmp` file first, then renames it into place only on success. If the write fails partway, the `.tmp` file is removed and any pre-existing Parquet file at that path is left untouched — a failed secondary export never leaves a corrupted or partial file behind, and it never fails the pipeline run itself (`parquet_error` on the result captures the failure for logging).
+
+The PostgreSQL write itself is not yet wired into `publish_outputs()` (tracked separately); this document describes the target behavior once it lands.
+
 
 ## Flow at a glance
 
@@ -130,7 +137,7 @@ The city input contract defines the fields on `cities`.
 
 7. **Load:** The load stage writes the completed gold dataset to `air_pollution_gold`. This is the table the dashboard API reads from.
 
-   Postgres is the primary target, not necessarily the only one. If the Parquet and Azure outputs sketched in `PublishResult` get built, they will come out of this same stage. The gold table is what the rest of this document assumes.
+   Postgres is the primary target, not the only one. The same stage also writes a secondary, archival Parquet snapshot to `gold_dir` (one file per run, `{run_id}_air_pollution_gold.parquet`) via `publish_outputs()`. The Parquet write is best-effort: a failure there is logged but does not fail the pipeline run. Azure remains unbuilt and out of scope. The gold table is what the rest of this document assumes.
 
 8. **Close out the run:** `pipeline_runs` is updated to succeeded, recording the city count, raw response count, and gold row count.
 
@@ -152,7 +159,7 @@ Configuration enters in one place, at step 1, and reaches the rest of the pipeli
 | Run setup     | Nothing                                                                  | `pipeline_runs`                                                                      |
 | Extract       | `cities`; `geocoding_cache`; OpenWeather geocoding and history endpoints | `air_pollution_raw`; new entries in `geocoding_cache`                                |
 | Transform     | `air_pollution_raw`                                                      | Nothing                                                                              |
-| Load          | The in-memory gold table                                                 | `air_pollution_gold` (Parquet and Azure copies are possible later, not planned here) |
+| Load          | The in-memory gold table                                                 | `air_pollution_gold`; secondary Parquet snapshot in `gold_dir` (Azure copy not planned here) |
 | Run close-out | Nothing                                                                  | Status update on `pipeline_runs`                                                     |
 
 Only the extract stage communicates with external APIs, and only the load stage publishes the final dataset.
