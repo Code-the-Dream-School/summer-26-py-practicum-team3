@@ -35,12 +35,7 @@ def valid_timestamps():
     return start, end
 
 
-# ============================================================================
-# 1. Default Factory & Unit Object Tests
-# ============================================================================
-
 def test_pipeline_run_record_default_factory(valid_timestamps):
-    """Verifies default_factory creates fresh dynamic timestamps per instance."""
     start, end = valid_timestamps
     record1 = PipelineRunRecord(
         pipeline_run_id=1,
@@ -50,7 +45,6 @@ def test_pipeline_run_record_default_factory(valid_timestamps):
         window_start_utc=start,
         window_end_utc=end,
     )
-    # Ensure distinct clock ticks between object instantiations
     time.sleep(0.001)
     record2 = PipelineRunRecord(
         pipeline_run_id=2,
@@ -63,27 +57,26 @@ def test_pipeline_run_record_default_factory(valid_timestamps):
 
     assert record1.created_at.tzinfo == timezone.utc
     assert record2.created_at.tzinfo == timezone.utc
-    # Regression check: timestamps must differ, proving evaluation at instantiate time
     assert record1.created_at < record2.created_at
 
 
-# ============================================================================
-# 2. Constraint & Validation Tests
-# ============================================================================
-
 @pytest.mark.parametrize("invalid_run_id", ["", "   ", "\t\n"])
 def test_create_pipeline_run_empty_run_id(repo, valid_timestamps, invalid_run_id):
-    """Empty or whitespace-only run_id must raise ValueError."""
     start, end = valid_timestamps
     with pytest.raises(ValueError, match="run_id cannot be empty"):
         repo.create(invalid_run_id, "openweather", 6, start, end)
 
 
+def test_create_pipeline_run_naive_datetimes_raise_error(repo):
+    naive_start = datetime(2026, 8, 26, 0, 0)
+    naive_end = datetime(2026, 8, 26, 6, 0)
+    with pytest.raises(ValueError, match="timezone-aware"):
+        repo.create("run-naive", "openweather", 6, naive_start, naive_end)
+
+
 def test_create_pipeline_run_duplicate_raises_error(repo, valid_timestamps):
-    """Mimics UNIQUE constraint on run_id: second insert must raise ValueError."""
     start, end = valid_timestamps
     run_id = "run-duplicate-001"
-
     repo.create(run_id, "openweather", 6, start, end)
 
     with pytest.raises(ValueError, match="already exists"):
@@ -97,7 +90,6 @@ def test_create_pipeline_run_invalid_history_hours(repo, valid_timestamps):
 
 
 def test_create_pipeline_run_invalid_window(repo):
-    """End time strictly earlier than start time must be rejected."""
     start = datetime(2026, 8, 26, 6, 0, tzinfo=timezone.utc)
     end = datetime(2026, 8, 26, 0, 0, tzinfo=timezone.utc)
     with pytest.raises(ValueError, match="must be >="):
@@ -105,7 +97,6 @@ def test_create_pipeline_run_invalid_window(repo):
 
 
 def test_create_pipeline_run_boundary_window_equal(repo):
-    """Boundary check: window_end_utc == window_start_utc is valid (>= constraint)."""
     ts = datetime(2026, 8, 26, 0, 0, tzinfo=timezone.utc)
     rec_id = repo.create("run-boundary-001", "openweather", 6, ts, ts)
 
@@ -119,9 +110,21 @@ def test_update_status_invalid_status_enum(repo, valid_timestamps):
     start, end = valid_timestamps
     repo.create("run-1", "openweather", 6, start, end)
 
-    update = PipelineRunStatusUpdate(status="success")  # Typo instead of 'succeeded'
+    update = PipelineRunStatusUpdate(status="success")
     with pytest.raises(ValueError, match="Invalid status"):
         repo.update_status("run-1", update)
+
+
+def test_update_status_from_terminal_status_raises_error(repo, valid_timestamps):
+    start, end = valid_timestamps
+    repo.create("run-term-001", "openweather", 6, start, end)
+    repo.update_status("run-term-001", PipelineRunStatusUpdate(status="succeeded"))
+
+    with pytest.raises(ValueError, match="Cannot transition run .* from terminal status"):
+        repo.update_status("run-term-001", PipelineRunStatusUpdate(status="running"))
+
+    with pytest.raises(ValueError, match="Cannot transition run .* from terminal status"):
+        repo.update_status("run-term-001", PipelineRunStatusUpdate(status="failed"))
 
 
 @pytest.mark.parametrize(
@@ -140,10 +143,6 @@ def test_update_status_negative_counters(repo, valid_timestamps, kwargs):
     with pytest.raises(ValueError, match="must be >= 0"):
         repo.update_status("run-1", update)
 
-
-# ============================================================================
-# 3. Functional Execution & Partial Update Tests
-# ============================================================================
 
 def test_create_and_update_success_via_module_functions(valid_timestamps):
     start, end = valid_timestamps
@@ -179,7 +178,6 @@ def test_create_and_update_success_via_module_functions(valid_timestamps):
 
 
 def test_update_failed_auto_populates_finished_at(repo, valid_timestamps):
-    """Verifies that terminal states without explicit finished_at get populated automatically."""
     start, end = valid_timestamps
     run_id = "run-fail-001"
     repo.create(run_id, "openweather", 6, start, end)
@@ -195,7 +193,7 @@ def test_update_failed_auto_populates_finished_at(repo, valid_timestamps):
     rec = repo.get(run_id)
     assert rec is not None
     assert rec.status == "failed"
-    assert rec.city_count == 0  # Preserved from initial default
+    assert rec.city_count == 0
     assert rec.error_message == "Network failure"
     assert rec.finished_at is not None
     assert rec.finished_at.tzinfo == timezone.utc
