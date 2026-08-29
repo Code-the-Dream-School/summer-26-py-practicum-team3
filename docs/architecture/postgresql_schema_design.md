@@ -475,8 +475,8 @@ CREATE TABLE air_pollution_gold (
     o3              DOUBLE PRECISION,
     so2             DOUBLE PRECISION,
     nh3             DOUBLE PRECISION,
-    lat             DOUBLE PRECISION,
-    lon             DOUBLE PRECISION,
+    lat             DOUBLE PRECISION NOT NULL,
+    lon             DOUBLE PRECISION NOT NULL,
     retrieved_at    TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT air_pollution_gold_pk
