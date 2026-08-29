@@ -4,6 +4,7 @@ from .operations import (
     filter_valid_records,
 )
 
+
 def transform_raw_response(raw_response):
     """
     Transform one RawResponse envelope into a list of clean
@@ -20,6 +21,15 @@ def transform_raw_response(raw_response):
     if not isinstance(raw_response, dict):
         raise ValueError("raw_response must be a dictionary")
 
+    # Handle response status before field-level rules.
+    status = raw_response.get("status")
+
+    if status in ("empty", "error"):
+        return []
+
+    if status != "ok":
+        raise ValueError(f"Invalid RawResponse status: {status!r}")
+
     payload = raw_response.get("payload")
 
     if not isinstance(payload, dict):
@@ -33,7 +43,7 @@ def transform_raw_response(raw_response):
     if not isinstance(observations, list):
         raise ValueError("RawResponse payload.list must be a list")
 
-    # Empty response produces no records
+    # Empty response produces no records.
     if not observations:
         return []
 
@@ -48,32 +58,29 @@ def transform_raw_response(raw_response):
         "run_id": raw_response.get("run_id"),
         "pipeline_run_id": raw_response.get("pipeline_run_id"),
     }
-    
+
     records = []
 
     for observation in observations:
         if not isinstance(observation, dict):
             continue
 
-        # Required location/context fields
         record = build_air_quality_record(
             observation,
             context,
         )
-        
+
         records.append(record)
 
-    # Remove records that are missing required normalized fields.
+    # Field-level validation/normalization is handled by operations.py.
+    # Invalid records are dropped rather than raising per-record errors.
     records = filter_valid_records(records)
 
-    # Remove repeated observations using the agreed deduplication rule.
-    #
-    # IMPORTANT:
-    # Use the tiebreaker field specified by the team's contract.
+    # Deduplicate according to the contract.
     records = dedupe_records(
         records,
         key_fields=("city_id", "observed_at"),
-        tiebreaker_field="run_id",
+        tiebreaker_field="pipeline_run_id",
     )
 
     return records
