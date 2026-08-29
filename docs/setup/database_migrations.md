@@ -165,9 +165,3 @@ To see the migration history:
 ```
 alembic history
 ```
-
-Also add this to `.env`:
-
-```env
-DATABASE_URL=postgresql+psycopg://<username>:<password>@localhost:5432/city_air_tracker
-```
