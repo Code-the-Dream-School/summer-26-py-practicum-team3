@@ -8,11 +8,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 from pathlib import Path
+import re
 import pandas as pd
 
 from pipeline.common.logging import get_logger
 
 log = get_logger(__name__)
+
+SAFE_RUN_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
 @dataclass
@@ -34,29 +37,37 @@ def publish_outputs(
 ) -> PublishResult:
     """Publishes transformed Gold records to secondary Parquet storage and PostgreSQL.
 
-    Behavior on empty gold_df:
-        If gold_df is empty, file creation is skipped to prevent directory clutter,
-        and gold_path is set to None. Run completion and zero rows count are tracked
-        via pipeline_runs database logs.
+    Execution Lifecycle & Triggers:
+        This function is executed during the Load stage of every pipeline job.
+        - Primary Export: Always attempted to PostgreSQL (`table_name`).
+        - Secondary Parquet Export: Attempted whenever `gold_dir` is provided (not None).
+          If `gold_dir` is None, secondary file export is cleanly skipped (`gold_path=None`).
+        - Empty Dataset: If `gold_df` is empty, Parquet file generation is skipped (`gold_path=None`)
+          to avoid empty file clutter on disk.
 
-    Failure isolation & atomic staging:
-        Uses atomic staging via a temporary file (*.tmp) in the same directory.
-        If writing fails:
-        - Any partial `.tmp` artifact is deleted.
-        - `PublishResult.gold_path` is set to None and `parquet_error` is populated.
-        - Pre-existing files on disk with the target name remain untouched/unaltered.
-        Downstream readers should rely on `PublishResult.gold_path` rather than scanning
-        the filesystem by blind filename inference.
+    Atomic Staging & Safety:
+        - Validates `run_id` against safe filename characters to prevent path traversal.
+        - Writes Parquet files using atomic staging via a temporary file (*.tmp).
+        - If writing fails, partial `.tmp` files are cleaned up and `parquet_error` is populated
+          without crashing the pipeline execution.
 
     Args:
         gold_df: Transformed clean records ready for analytical storage.
-        gold_dir: Directory where archival Parquet snapshots are saved.
-        run_id: Unique pipeline run identifier (required for deterministic naming and tracing).
+        gold_dir: Directory where archival Parquet snapshots are saved (or None to skip).
+        run_id: Unique pipeline run identifier (alphanumeric, underscores, hyphens).
         table_name: Name of the primary PostgreSQL destination table.
 
     Returns:
-        PublishResult with populated paths, row counts, and status fields.
+        PublishResult with populated paths, row counts, and error states.
+
+    Raises:
+        ValueError: If run_id contains invalid filename characters.
     """
+    if not run_id or not SAFE_RUN_ID_PATTERN.match(run_id):
+        raise ValueError(
+            f"Invalid run_id '{run_id}'. run_id must contain only alphanumeric characters, underscores, and hyphens."
+        )
+
     row_count = len(gold_df)
 
     if row_count == 0:

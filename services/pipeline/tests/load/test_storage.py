@@ -8,6 +8,10 @@ import pytest
 from pipeline.load.storage import PublishResult, publish_outputs
 
 
+# ============================================================================
+# 1. Fixtures
+# ============================================================================
+
 @pytest.fixture
 def sample_gold_df():
     """Returns a non-empty sample Gold DataFrame."""
@@ -24,14 +28,34 @@ def sample_gold_df():
     )
 
 
+# ============================================================================
+# 2. Validation & Security Tests
+# ============================================================================
+
+@pytest.mark.parametrize("invalid_run_id", ["../escape", "run/id", "run:id", "run*id", "", "   "])
+def test_publish_outputs_invalid_run_id_raises_error(tmp_path: Path, sample_gold_df: pd.DataFrame, invalid_run_id: str):
+    """Unsafe run_id characters must raise ValueError to prevent path traversal."""
+    with pytest.raises(ValueError, match="Invalid run_id"):
+        publish_outputs(
+            gold_df=sample_gold_df,
+            gold_dir=tmp_path,
+            run_id=invalid_run_id,
+            table_name="air_pollution_gold",
+        )
+
+
+# ============================================================================
+# 3. Functional Execution & Output Publishing Tests
+# ============================================================================
+
 def test_publish_outputs_success(tmp_path: Path, sample_gold_df: pd.DataFrame):
     """Verifies successful write matching orchestration field names."""
     run_id = "run-2026-08-15-001"
     result = publish_outputs(
         gold_df=sample_gold_df,
         gold_dir=tmp_path,
-        table_name="air_pollution_gold",
         run_id=run_id,
+        table_name="air_pollution_gold",
     )
 
     assert isinstance(result, PublishResult)
@@ -56,8 +80,8 @@ def test_publish_outputs_empty_df_skips_file_creation(tmp_path: Path):
     result = publish_outputs(
         gold_df=empty_df,
         gold_dir=tmp_path,
-        table_name="air_pollution_gold",
         run_id=run_id,
+        table_name="air_pollution_gold",
     )
 
     assert result.rows == 0
@@ -72,8 +96,8 @@ def test_publish_outputs_none_gold_dir(sample_gold_df: pd.DataFrame):
     result = publish_outputs(
         gold_df=sample_gold_df,
         gold_dir=None,
-        table_name="air_pollution_gold",
         run_id="run-2026-08-15-003",
+        table_name="air_pollution_gold",
     )
 
     assert result.rows == 1
@@ -82,25 +106,9 @@ def test_publish_outputs_none_gold_dir(sample_gold_df: pd.DataFrame):
     assert result.parquet_error is None
 
 
-def test_publish_outputs_parquet_write_error_captured(
-    tmp_path: Path, sample_gold_df: pd.DataFrame
-):
-    """Verifies that Parquet writing failures populate parquet_error without throwing."""
-    run_id = "run-2026-08-15-004"
-
-    with patch.object(pd.DataFrame, "to_parquet", side_effect=IOError("Disk write failure")):
-        result = publish_outputs(
-            gold_df=sample_gold_df,
-            gold_dir=tmp_path,
-            table_name="air_pollution_gold",
-            run_id=run_id,
-        )
-
-    assert result.rows == 1
-    assert result.table_name == "air_pollution_gold"
-    assert result.gold_path is None
-    assert result.parquet_error is not None
-    assert "Disk write failure" in result.parquet_error
+# ============================================================================
+# 4. Error Isolation & File Integrity Tests
+# ============================================================================
 
 def test_publish_outputs_preserves_preexisting_file_on_write_failure(
     tmp_path: Path, sample_gold_df: pd.DataFrame

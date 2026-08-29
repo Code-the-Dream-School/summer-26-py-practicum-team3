@@ -174,6 +174,7 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
                 "gold_path": str(publish_result.gold_path) if publish_result.gold_path is not None else None,
                 "azure_blob_path": publish_result.azure_blob_path,
                 "rows": publish_result.rows,
+                "parquet_error": publish_result.parquet_error,
             },
         )
 
