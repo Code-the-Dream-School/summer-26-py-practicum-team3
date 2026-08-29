@@ -83,7 +83,9 @@ def downgrade():
 
 Apply the new migration with:
 
+```
 alembic upgrade head
+```
 
 ## Migration Workflow
 
