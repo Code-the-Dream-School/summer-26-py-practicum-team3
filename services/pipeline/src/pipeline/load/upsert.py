@@ -1,0 +1,79 @@
+AIR_QUALITY_UPSERT_SQL = """
+INSERT INTO air_pollution_gold (
+    city_id,
+    observed_at,
+    city_name,
+    country_code,
+    state_code,
+    lat,
+    lon,
+    aqi,
+    aqi_label,
+    co,
+    no2,
+    no,
+    o3,
+    so2,
+    pm2_5,
+    pm10,
+    nh3,
+    run_id,
+    pipeline_run_id
+)
+VALUES (
+    %(city_id)s,
+    %(observed_at)s,
+    %(city_name)s,
+    %(country_code)s,
+    %(state_code)s,
+    %(lat)s,
+    %(lon)s,
+    %(aqi)s,
+    %(aqi_label)s,
+    %(co)s,
+    %(no2)s,
+    %(no)s,
+    %(o3)s,
+    %(so2)s,
+    %(pm2_5)s,
+    %(pm10)s,
+    %(nh3)s,
+    %(run_id)s,
+    %(pipeline_run_id)s
+)
+ON CONFLICT (city_id, observed_at)
+DO UPDATE SET
+    city_name = EXCLUDED.city_name,
+    country_code = EXCLUDED.country_code,
+    state_code = EXCLUDED.state_code,
+    lat = EXCLUDED.lat,
+    lon = EXCLUDED.lon,
+    aqi = EXCLUDED.aqi,
+    aqi_label = EXCLUDED.aqi_label,
+    co = EXCLUDED.co,
+    no2 = EXCLUDED.no2,
+    no = EXCLUDED.no,
+    o3 = EXCLUDED.o3,
+    so2 = EXCLUDED.so2,
+    pm2_5 = EXCLUDED.pm2_5,
+    pm10 = EXCLUDED.pm10,
+    nh3 = EXCLUDED.nh3,
+    run_id = EXCLUDED.run_id,
+    pipeline_run_id = EXCLUDED.pipeline_run_id
+"""
+
+def upsert_air_quality_record(cursor, record):
+    """Insert a new air-quality record or update an existing observation.
+
+    Records are uniquely identified by (city_id, observed_at).
+    """
+    if not record:
+        return
+
+    cursor.execute(AIR_QUALITY_UPSERT_SQL, record)
+
+
+def upsert_air_quality_records(cursor, records):
+    """Insert or update a collection of air-quality records."""
+    for record in records:
+        upsert_air_quality_record(cursor, record)
