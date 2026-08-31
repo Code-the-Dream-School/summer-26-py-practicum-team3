@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -8,28 +7,17 @@ import pandas as pd
 
 from pipeline.common.config import settings
 from pipeline.common.logging import get_logger
-from pipeline.extract.cities import read_cities
+from pipeline.extract.cities import City, read_cities
 from pipeline.extract.geocoding import geocode_city
 from pipeline.extract.openweather_air_pollution import RawAirPollutionRecord, fetch_air_pollution_history
 from pipeline.load.storage import PublishResult, publish_outputs
+from pipeline.orchestration_runner import PipelineRunResult, run_pipeline
 from pipeline.run_tracking import PipelineRunStatusUpdate, create_pipeline_run, update_pipeline_run_status
 from pipeline.transform.openweather_air_pollution_transform import build_gold_from_raw_records
 
+__all__ = ["PipelineRunResult", "run_pipeline_job"]
 
 log = get_logger(__name__)
-
-
-@dataclass(frozen=True)
-class PipelineRunResult:
-    pipeline_run_id: int
-    run_id: str
-    source: str
-    history_hours: int
-    raw_records: list[RawAirPollutionRecord]
-    gold_path: Path | None
-    azure_blob_path: str | None
-    postgres_table: str | None
-    rows: int
 
 
 def ensure_output_directories() -> tuple[Path, Path]:
@@ -47,10 +35,8 @@ def build_runtime_window(history_hours: int) -> tuple[datetime, datetime]:
 
 
 def run_extract_stage(
-    raw_dir: Path, start: datetime, end: datetime, run_id: str, pipeline_run_id: int
+    raw_dir: Path, cities: list[City], start: datetime, end: datetime, run_id: str, pipeline_run_id: int
 ) -> tuple[list[RawAirPollutionRecord], int]:
-    cities_path = Path(settings.cities_file) if settings.cities_source == "file" else None
-    cities = read_cities(cities_path)
     raw_records: list[RawAirPollutionRecord] = []
 
     for city in cities:
@@ -99,6 +85,9 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
     raw_dir, gold_dir = ensure_output_directories()
     start, end = build_runtime_window(resolved_history_hours)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    cities_path = Path(settings.cities_file) if settings.cities_source == "file" else None
+    cities = read_cities(cities_path)
+
     pipeline_run_id = create_pipeline_run(
         run_id=run_id,
         source=source,
@@ -118,87 +107,32 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
             "window_end_utc": end.isoformat(),
         },
     )
-    city_count = 0
-    raw_records: list[RawAirPollutionRecord] = []
 
     try:
-        log.info(
-            "Extract stage starting",
-            extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "source": source},
-        )
-        raw_records, city_count = run_extract_stage(
+        result = run_pipeline(
+            cities=cities,
             raw_dir=raw_dir,
+            gold_dir=gold_dir,
             start=start,
             end=end,
             run_id=run_id,
             pipeline_run_id=pipeline_run_id,
-        )
-        log.info(
-            "Extract stage complete",
-            extra={
-                "run_id": run_id,
-                "pipeline_run_id": pipeline_run_id,
-                "city_count": city_count,
-                "raw_response_count": len(raw_records),
-            },
-        )
-
-        log.info(
-            "Transform stage starting",
-            extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "raw_response_count": len(raw_records)},
-        )
-        gold_df = run_transform_stage(raw_records=raw_records)
-        if not gold_df.empty:
-            gold_df["pipeline_run_id"] = pipeline_run_id
-        log.info(
-            "Transform stage complete",
-            extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "gold_row_count": len(gold_df)},
-        )
-
-        log.info(
-            "Load stage starting",
-            extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "gold_row_count": len(gold_df)},
-        )
-        # Load Stage
-        publish_result = run_load_stage(
-            gold_df=gold_df,
-            gold_dir=gold_dir,
-            run_id=run_id,
-        )
-        log.info(
-            "Load stage complete",
-            extra={
-                "run_id": run_id,
-                "pipeline_run_id": pipeline_run_id,
-                "postgres_table": publish_result.table_name,
-                "gold_path": str(publish_result.gold_path) if publish_result.gold_path is not None else None,
-                "azure_blob_path": publish_result.azure_blob_path,
-                "rows": publish_result.rows,
-                "parquet_error": publish_result.parquet_error,
-            },
+            source=source,
+            history_hours=resolved_history_hours,
+            extract=run_extract_stage,
+            transform=run_transform_stage,
+            load=run_load_stage,
         )
 
         update_pipeline_run_status(
             run_id,
             PipelineRunStatusUpdate(
                 status="succeeded",
-                city_count=city_count,
-                raw_response_count=len(raw_records),
-                gold_row_count=len(gold_df),
+                city_count=result.city_count,
+                raw_response_count=result.raw_response_count,
+                gold_row_count=result.gold_row_count,
                 finished_at=datetime.now(timezone.utc),
             ),
-        )
-
-        result = PipelineRunResult(
-            pipeline_run_id=pipeline_run_id,
-            run_id=run_id,
-            source=source,
-            history_hours=resolved_history_hours,
-            raw_records=raw_records,
-            gold_path=publish_result.gold_path,
-            azure_blob_path=publish_result.azure_blob_path,
-            postgres_table=publish_result.table_name,
-            rows=len(gold_df),
         )
 
         log.info(
@@ -206,9 +140,9 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
             extra={
                 "run_id": run_id,
                 "pipeline_run_id": result.pipeline_run_id,
-                "city_count": city_count,
-                "raw_response_count": len(raw_records),
-                "gold_row_count": result.rows,
+                "city_count": result.city_count,
+                "raw_response_count": result.raw_response_count,
+                "gold_row_count": result.gold_row_count,
                 "postgres_table": result.postgres_table,
                 "gold_path": str(result.gold_path) if result.gold_path is not None else None,
                 "azure_blob_path": result.azure_blob_path,
@@ -218,20 +152,12 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
     except Exception as exc:
         log.exception(
             "Pipeline failed",
-            extra={
-                "run_id": run_id,
-                "pipeline_run_id": pipeline_run_id,
-                "source": source,
-                "city_count": city_count or None,
-                "raw_response_count": len(raw_records) or None,
-            },
+            extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "source": source},
         )
         update_pipeline_run_status(
             run_id,
             PipelineRunStatusUpdate(
                 status="failed",
-                city_count=city_count or None,
-                raw_response_count=len(raw_records) or None,
                 error_message=str(exc),
                 finished_at=datetime.now(timezone.utc),
             ),
