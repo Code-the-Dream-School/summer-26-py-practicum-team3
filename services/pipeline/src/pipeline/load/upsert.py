@@ -1,3 +1,9 @@
+"""Database upsert operations for Gold air pollution records."""
+
+from __future__ import annotations
+
+from typing import Any, Sequence
+
 AIR_QUALITY_UPSERT_SQL = """
 INSERT INTO air_pollution_gold (
     city_id,
@@ -18,7 +24,8 @@ INSERT INTO air_pollution_gold (
     pm10,
     nh3,
     run_id,
-    pipeline_run_id
+    pipeline_run_id,
+    retrieved_at
 )
 VALUES (
     %(city_id)s,
@@ -39,7 +46,8 @@ VALUES (
     %(pm10)s,
     %(nh3)s,
     %(run_id)s,
-    %(pipeline_run_id)s
+    %(pipeline_run_id)s,
+    %(retrieved_at)s
 )
 ON CONFLICT (city_id, observed_at)
 DO UPDATE SET
@@ -59,21 +67,28 @@ DO UPDATE SET
     pm10 = EXCLUDED.pm10,
     nh3 = EXCLUDED.nh3,
     run_id = EXCLUDED.run_id,
-    pipeline_run_id = EXCLUDED.pipeline_run_id
+    pipeline_run_id = EXCLUDED.pipeline_run_id,
+    retrieved_at = EXCLUDED.retrieved_at
+WHERE EXCLUDED.pipeline_run_id > air_pollution_gold.pipeline_run_id;
 """
 
-def upsert_air_quality_record(cursor, record):
+
+def upsert_air_quality_record(cursor: Any, record: dict[str, Any]) -> None:
     """Insert a new air-quality record or update an existing observation.
 
     Records are uniquely identified by (city_id, observed_at).
+    Updates only occur if the incoming record has a higher pipeline_run_id.
     """
     if not record:
         return
-
     cursor.execute(AIR_QUALITY_UPSERT_SQL, record)
 
 
-def upsert_air_quality_records(cursor, records):
+def upsert_air_quality_records(cursor: Any, records: Sequence[dict[str, Any]]) -> int:
     """Insert or update a collection of air-quality records."""
+    count = 0
     for record in records:
-        upsert_air_quality_record(cursor, record)
+        if record:
+            upsert_air_quality_record(cursor, record)
+            count += 1
+    return count

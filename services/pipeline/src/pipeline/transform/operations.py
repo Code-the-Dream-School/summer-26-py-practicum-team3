@@ -26,9 +26,6 @@ def normalize_coordinate(value: Any, *, is_latitude: bool) -> Optional[float]:
     Cast a coordinate to float and validate its range
     Latitude: -90..90, Longitude: -180..180.
     Returns None if missing, non-numeric, or out of range.
-
-    This function re-validates defensively in case corrupted values ever reach the raw
-    table by another path (manual insert, replay, etc.).
     """
     if value is None:
         return None
@@ -53,6 +50,7 @@ _AQI_LABELS = {
     5: "Very Poor",
 }
 
+
 def normalize_aqi(value: Any) -> Optional[int]:
     """Cast OpenWeather's 1-5 AQI index to int; None if missing/out of range."""
     if value is None:
@@ -74,10 +72,8 @@ def aqi_label(aqi: Optional[int]) -> Optional[str]:
     return _AQI_LABELS.get(aqi)
 
 
-# --- Rule: pollutant concentration typing + validity (no unit conversion needed) ----
+# --- Rule: pollutant concentration typing + validity ---
 
-# All OpenWeather Air Pollution `components` values are already in ug/m3.
-# No unit conversion is required. For only type-cast and reject physically-impossible (negative) readings.
 COMPONENT_FIELDS = ("co", "no", "no2", "o3", "so2", "pm2_5", "pm10", "nh3")
 
 
@@ -109,24 +105,17 @@ def normalize_components(components: Optional[dict]) -> dict:
     }
 
 
-# Rule: text normalization
+# --- Rule: text normalization ---
 
 def normalize_text(value: Any) -> Optional[str]:
-    """
-    Strip surrounding whitespace and collapse empty strings to None.
-
-    Casing is preserved as returned by the API: city/country names can be
-    non-ASCII (e.g., accented characters), and forcing title-case would
-    corrupt some international names. city_id (not name) is the join key
-    used elsewhere, so this is purely a display-field cleanup.
-    """
+    """Strip surrounding whitespace and collapse empty strings to None."""
     if value is None:
         return None
     text = str(value).strip()
     return text or None
 
 
-# Rule: duplicate / repeated records handling
+# --- Rule: duplicate / repeated records handling ---
 
 def dedupe_records(
     records: list[dict],
@@ -164,7 +153,6 @@ def build_air_quality_record(
     context: dict,
 ) -> dict:
     """Build one AirQualityRecord from a raw observation and its RawResponse context."""
-
     aqi = normalize_aqi(observation.get("main", {}).get("aqi"))
 
     record = {
@@ -193,12 +181,17 @@ REQUIRED_FIELDS = ("city_id", "observed_at", "lat", "lon", "aqi", "retrieved_at"
 
 def filter_valid_records(records: list[dict]) -> list[dict]:
     """
-    Remove records missing any required normalized fields.
-    Only records with non‑None values for city_id, observed_at, lat, lon, aqi, and retrieved_at are kept.
-    Optional fields are not validated here.
+    Remove records missing any required normalized fields or having invalid datetime types.
+    Only records with non-None values for city_id, lat, lon, aqi, and datetime objects for
+    observed_at and retrieved_at are kept.
     """
-    return [
-        record
-        for record in records
-        if all(record.get(field) is not None for field in REQUIRED_FIELDS)
-    ]
+    valid = []
+    for r in records:
+        if not all(r.get(field) is not None for field in REQUIRED_FIELDS):
+            continue
+        if not isinstance(r.get("observed_at"), datetime):
+            continue
+        if not isinstance(r.get("retrieved_at"), datetime):
+            continue
+        valid.append(r)
+    return valid

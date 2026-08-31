@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .operations import (
     build_air_quality_record,
     dedupe_records,
@@ -5,23 +7,14 @@ from .operations import (
 )
 
 
-def transform_raw_response(raw_response):
+def transform_raw_response(raw_response: dict) -> list[dict]:
     """
     Transform one RawResponse envelope into a list of clean
     air-quality observation records.
-
-    The function does not call the API or write to the database.
-    It only converts the supplied raw response into the agreed
-    clean record shape.
-
-    One observation in payload["list"] becomes one output record.
     """
-
-    # Response-level validation
     if not isinstance(raw_response, dict):
         raise ValueError("raw_response must be a dictionary")
 
-    # Handle response status before field-level rules.
     status = raw_response.get("status")
 
     if status in ("empty", "error"):
@@ -43,11 +36,9 @@ def transform_raw_response(raw_response):
     if not isinstance(observations, list):
         raise ValueError("RawResponse payload.list must be a list")
 
-    # Empty response produces no records.
     if not observations:
         return []
 
-    # Build the context shared by all observations in this response.
     context = {
         "city_id": raw_response.get("city_id"),
         "city_name": raw_response.get("city_name"),
@@ -70,14 +61,10 @@ def transform_raw_response(raw_response):
             observation,
             context,
         )
-
         records.append(record)
 
-    # Field-level validation/normalization is handled by operations.py.
-    # Invalid records are dropped rather than raising per-record errors.
     records = filter_valid_records(records)
 
-    # Deduplicate according to the contract.
     records = dedupe_records(
         records,
         key_fields=("city_id", "observed_at"),

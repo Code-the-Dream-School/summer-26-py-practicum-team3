@@ -10,10 +10,14 @@ from pipeline.common.config import settings
 from pipeline.common.logging import get_logger
 from pipeline.extract.cities import read_cities
 from pipeline.extract.geocoding import geocode_city
-from pipeline.extract.openweather_air_pollution import RawAirPollutionRecord, fetch_air_pollution_history
+from pipeline.extract.openweather_air_pollution import (
+    RawAirPollutionRecord,
+    fetch_air_pollution_history,
+    to_transform_input,
+)
 from pipeline.load.storage import PublishResult, publish_outputs
 from pipeline.run_tracking import PipelineRunStatusUpdate, create_pipeline_run, update_pipeline_run_status
-from pipeline.transform.openweather_air_pollution_transform import build_gold_from_raw_records
+from pipeline.transform.transform import transform_raw_response
 
 
 log = get_logger(__name__)
@@ -62,8 +66,10 @@ def run_extract_stage(
         )
         raw_record = fetch_air_pollution_history(
             raw_dir=raw_dir,
+            city_id=city.city_id,
             city=city.city,
             country_code=city.country_code,
+            state_code=city.state,
             lat=coords.lat,
             lon=coords.lon,
             start=start,
@@ -77,7 +83,13 @@ def run_extract_stage(
 
 
 def run_transform_stage(raw_records: list[RawAirPollutionRecord]) -> pd.DataFrame:
-    return build_gold_from_raw_records(raw_records=raw_records)
+    transformed_records: list[dict] = []
+    for record in raw_records:
+        envelope = to_transform_input(record)
+        clean_records = transform_raw_response(envelope)
+        transformed_records.extend(clean_records)
+
+    return pd.DataFrame(transformed_records)
 
 
 def run_load_stage(
@@ -159,7 +171,6 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
             "Load stage starting",
             extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "gold_row_count": len(gold_df)},
         )
-        # Load Stage
         publish_result = run_load_stage(
             gold_df=gold_df,
             gold_dir=gold_dir,

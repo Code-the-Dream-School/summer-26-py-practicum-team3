@@ -1,9 +1,8 @@
-""" Unit tests for transform/operations.py """
+"""Unit tests for transform/operations.py."""
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
-
 import pytest
 
 from pipeline.transform.operations import (
@@ -20,7 +19,9 @@ from pipeline.transform.operations import (
 )
 
 
-# --- Timestamp normalization tests ---
+# ============================================================================
+# 1. Timestamp Normalization Tests
+# ============================================================================
 
 def test_unix_to_utc_datetime_converts_unix_seconds_to_utc():
     result = unix_to_utc_datetime(1720000000)
@@ -45,7 +46,9 @@ def test_unix_to_utc_datetime_returns_none_for_invalid_value(value):
     assert unix_to_utc_datetime(value) is None
 
 
-# --- Coordinate normalization tests ---
+# ============================================================================
+# 2. Coordinate Normalization Tests
+# ============================================================================
 
 def test_normalize_coordinate_valid():
     assert normalize_coordinate("51.512345", is_latitude=True) == 51.512345
@@ -67,9 +70,7 @@ def test_normalize_longitude_casts_to_float():
         (-180.0001, False),
     ],
 )
-def test_normalize_coordinate_out_of_range(
-    value, is_latitude
-):
+def test_normalize_coordinate_out_of_range(value, is_latitude):
     assert normalize_coordinate(value, is_latitude=is_latitude) is None
 
 
@@ -82,9 +83,7 @@ def test_normalize_coordinate_out_of_range(
         (-180, False),
     ],
 )
-def test_normalize_coordinate_accepts_boundary_values(
-    value, is_latitude
-):
+def test_normalize_coordinate_accepts_boundary_values(value, is_latitude):
     assert normalize_coordinate(value, is_latitude=is_latitude) == float(value)
 
 
@@ -93,8 +92,9 @@ def test_normalize_coordinate_returns_none_for_non_numeric_value(value):
     assert normalize_coordinate(value, is_latitude=True) is None
 
 
-
-# --- AQI normalization tests ---
+# ============================================================================
+# 3. AQI Normalization Tests
+# ============================================================================
 
 @pytest.mark.parametrize(
     "value,expected",
@@ -142,7 +142,9 @@ def test_aqi_label_returns_none_for_invalid_aqi():
     assert aqi_label(99) is None
 
 
-# --- Normalize pollutant components tests ---
+# ============================================================================
+# 4. Normalize Pollutant Components Tests
+# ============================================================================
 
 @pytest.mark.parametrize(
     "value, expected",
@@ -216,7 +218,6 @@ def test_normalize_components_sets_missing_fields_to_none():
 
 def test_normalize_components_handles_none():
     result = normalize_components(None)
-
     assert all(value is None for value in result.values())
 
 
@@ -232,7 +233,9 @@ def test_normalize_components_negative_pollutant_becomes_none():
     assert result["pm2_5"] == 4.3
 
 
-# --- Text normalization tests ---
+# ============================================================================
+# 5. Text Normalization Tests
+# ============================================================================
 
 @pytest.mark.parametrize(
     "value,expected",
@@ -245,9 +248,7 @@ def test_normalize_components_negative_pollutant_becomes_none():
         (None, None),
     ],
 )
-def test_normalize_text_strips_whitespace_and_empty_values(
-    value, expected
-):
+def test_normalize_text_strips_whitespace_and_empty_values(value, expected):
     assert normalize_text(value) == expected
 
 
@@ -260,7 +261,9 @@ def test_normalize_text_preserves_non_ascii_characters():
     assert normalize_text(" Montréal ") == "Montréal"
 
 
-# --- Normalize dedupe tests ---
+# ============================================================================
+# 6. Normalize Dedupe Tests
+# ============================================================================
 
 def test_dedupe_records_keeps_highest_pipeline_run_id():
     records = [
@@ -407,7 +410,9 @@ def test_dedupe_records_handles_missing_tiebreaker():
     assert result[0]["pipeline_run_id"] == "pipeline-2024-07-03-002"
 
 
-# --- build_air_quality_record tests ---
+# ============================================================================
+# 7. Record Assembly Tests
+# ============================================================================
 
 @pytest.fixture
 def _sample_observation():
@@ -420,6 +425,7 @@ def _sample_observation():
         },
     }
 
+
 @pytest.fixture
 def _sample_context():
     return {
@@ -429,7 +435,7 @@ def _sample_context():
         "state_code": "CA",
         "lat": 37.7749,
         "lon": -122.4194,
-        "retrieved_at": "2024-07-03T12:27:05Z",
+        "retrieved_at": datetime(2024, 7, 3, 12, 27, 5, tzinfo=timezone.utc),
         "run_id": "run-2024-07-03-001",
         "pipeline_run_id": "pipeline-2024-07-03-001",
     }
@@ -440,9 +446,14 @@ def test_build_air_quality_record_maps_all_contract_fields(_sample_observation, 
 
     assert record["city_id"] == "us-san-francisco-ca"
     assert record["city_name"] == "San Francisco"  # normalize_text strips whitespace
+    assert record["country_code"] == "US"
+    assert record["state_code"] == "CA"
+    assert record["lat"] == 37.7749
+    assert record["lon"] == -122.4194
     assert record["observed_at"] == datetime(2024, 7, 3, 9, 46, 40, tzinfo=timezone.utc)
-    assert record["retrieved_at"] == "2024-07-03T12:27:05Z"
+    assert record["retrieved_at"] == datetime(2024, 7, 3, 12, 27, 5, tzinfo=timezone.utc)
     assert record["aqi"] == 2
+    assert record["aqi_label"] == "Fair"
     assert record["co"] == 201.94
     assert record["run_id"] == "run-2024-07-03-001"
     assert record["pipeline_run_id"] == "pipeline-2024-07-03-001"
@@ -450,71 +461,58 @@ def test_build_air_quality_record_maps_all_contract_fields(_sample_observation, 
 
 def test_build_air_quality_record_includes_aqi_label_when_flagged(_sample_observation, _sample_context):
     record = build_air_quality_record(_sample_observation, _sample_context)
-
     assert record["aqi_label"] == "Fair"
 
 
 def test_build_air_quality_record_normalizes_invalid_aqi_to_none(_sample_observation, _sample_context):
     _sample_observation["main"]["aqi"] = 99
-
     record = build_air_quality_record(_sample_observation, _sample_context)
-
     assert record["aqi"] is None
     assert record["aqi_label"] is None
 
 
-# --- filter_valid_records tests ---
+# ============================================================================
+# 8. Filter Valid Records Tests
+# ============================================================================
 
 def test_filter_valid_records_keeps_record_with_all_required_fields(_sample_observation, _sample_context):
     record = build_air_quality_record(_sample_observation, _sample_context)
-
     result = filter_valid_records([record])
-
     assert result == [record]
 
 
 def test_filter_valid_records_drops_record_with_missing_city_id(_sample_observation, _sample_context):
     _sample_context["city_id"] = None
     record = build_air_quality_record(_sample_observation, _sample_context)
-
     result = filter_valid_records([record])
-
     assert result == []
 
 
 def test_filter_valid_records_drops_record_with_unparsable_timestamp(_sample_observation, _sample_context):
     _sample_observation["dt"] = "not-a-timestamp"
     record = build_air_quality_record(_sample_observation, _sample_context)
-
     result = filter_valid_records([record])
-
     assert result == []
 
 
 def test_filter_valid_records_drops_record_with_invalid_coordinates(_sample_observation, _sample_context):
     _sample_context["lat"] = 999
     record = build_air_quality_record(_sample_observation, _sample_context)
-
     result = filter_valid_records([record])
-
     assert result == []
 
 
 def test_filter_valid_records_drops_record_with_invalid_aqi(_sample_observation, _sample_context):
     _sample_observation["main"]["aqi"] = 99
     record = build_air_quality_record(_sample_observation, _sample_context)
-
     result = filter_valid_records([record])
-
     assert result == []
 
 
 def test_filter_valid_records_keeps_record_with_missing_optional_pollutant(_sample_observation, _sample_context):
     del _sample_observation["components"]["co"]
     record = build_air_quality_record(_sample_observation, _sample_context)
-
     result = filter_valid_records([record])
-
     assert len(result) == 1
     assert result[0]["co"] is None
 
@@ -527,13 +525,19 @@ def test_filter_valid_records_processes_mixed_batch(_sample_observation, _sample
     invalid = build_air_quality_record(_sample_observation, bad_context)
 
     result = filter_valid_records([valid, invalid])
-
     assert result == [valid]
-    
+
+
 def test_filter_valid_records_drops_record_with_missing_retrieved_at(_sample_observation, _sample_context):
     _sample_context["retrieved_at"] = None
     record = build_air_quality_record(_sample_observation, _sample_context)
-
     result = filter_valid_records([record])
+    assert result == []
 
+
+def test_filter_valid_records_drops_string_retrieved_at(_sample_observation, _sample_context):
+    """String timestamps for retrieved_at must be rejected by filter_valid_records."""
+    _sample_context["retrieved_at"] = "2024-07-03T12:27:05Z"
+    record = build_air_quality_record(_sample_observation, _sample_context)
+    result = filter_valid_records([record])
     assert result == []
