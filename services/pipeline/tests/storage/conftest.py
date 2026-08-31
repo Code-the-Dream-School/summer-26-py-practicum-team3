@@ -1,6 +1,12 @@
 import os
+from pathlib import Path
+from typing import Iterator
+
 import psycopg
 import pytest
+
+from alembic import command
+from alembic.config import Config
 
 from sqlalchemy.engine import make_url
 from dotenv import load_dotenv
@@ -41,4 +47,24 @@ def setup_test_database():
 
     return db_url
 
+
+@pytest.fixture(scope="session")
+def migrated_schema(setup_test_database, pytestconfig):
+    """Apply Alembic migrations before running tests."""
+    db_url = setup_test_database
+    root = pytestconfig.rootpath
+
+    ini_path = root / "services" / "pipeline" / "alembic.ini"
+    script_dir = root / "services" / "pipeline" / "alembic"
+
+    alembic_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1).replace("%", "%%")
+
+    cfg = Config(str(ini_path))
+    cfg.set_main_option("sqlalchemy.url", alembic_url)
+    cfg.set_main_option("script_location", str(script_dir))
+
+    command.downgrade(cfg, "base")
+    command.upgrade(cfg, "head")
+
+    return db_url
 
