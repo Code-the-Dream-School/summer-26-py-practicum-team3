@@ -146,7 +146,7 @@ def _request_history(
 
     status_code = getattr(response, "status_code", None)
 
-    # 1. Сначала сохраняем сырой ответ на диск (raw before parse)
+    # 1. Save the raw response to disk first (raw before parse)
     raw_text = getattr(response, "text", "")
     raw_file_path = _save_raw_response(
         raw_dir=raw_dir,
@@ -156,13 +156,13 @@ def _request_history(
         payload=raw_text,
     )
 
-    # 2. Парсим JSON
+    # 2. Parse JSON
     try:
         data = response.json()
     except Exception as exc:
         raise OpenWeatherRequestError(f"Invalid JSON response from OpenWeather: {exc}") from exc
 
-    # Если ответ валидный JSON, перезаписываем красивым форматированием (если нужно)
+    # 3. If the response is valid JSON, rewrite it with pretty formatting (if needed)
     if isinstance(data, (dict, list)):
         _save_raw_response(
             raw_dir=raw_dir,
@@ -249,7 +249,7 @@ def fetch_air_pollution_history(
             extra={"city": city, "country": country_code, "error": str(exc)},
         )
 
-        # Вычисляем путь к файлу на случай, если он был записан перед ошибкой
+        # 4. Compute the file path in case it was written before the error
         city_slug = city.strip().lower().replace(" ", "_")
         country_slug = country_code.strip().lower()
         candidate_file = (

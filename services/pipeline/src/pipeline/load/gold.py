@@ -9,7 +9,7 @@ import psycopg
 from pipeline.load.upsert import upsert_air_quality_records
 
 
-# Загрязнители и state_code исключены, так как они опциональны.
+# Pollutants and state_code are excluded, since they are optional.
 GOLD_REQUIRED = (
     "city_id", "city_name", "country_code", "run_id", "pipeline_run_id",
     "observed_at", "aqi", "lat", "lon", "retrieved_at"
@@ -38,8 +38,8 @@ def save_transformed_records(
     enriched_records: list[dict[str, Any]] = []
     
     for r in records:
-        # Явно собираем словарь со всеми ключами, которые ждёт AIR_QUALITY_UPSERT_SQL.
-        # Это защищает psycopg от KeyError, если в исходном словаре ключа вообще нет.
+        # Explicitly build a dict with every key AIR_QUALITY_UPSERT_SQL expects.
+        # This protects psycopg from a KeyError if the source dict is missing a key entirely.   
         row = {
             "city_id": r.get("city_id"),
             "city_name": r.get("city_name"),
