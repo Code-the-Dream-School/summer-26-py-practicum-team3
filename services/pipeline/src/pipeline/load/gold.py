@@ -29,7 +29,6 @@ def _validate_required_fields(record: dict[str, Any], required: Sequence[str]) -
 def save_transformed_records(
     conn: psycopg.Connection,
     records: Sequence[dict[str, Any]],
-    retrieved_at: datetime | None = None,
 ) -> int:
     """Saves transformed gold records using the canonical upsert strategy."""
     if not records:
@@ -60,7 +59,7 @@ def save_transformed_records(
             "nh3": r.get("nh3"),
             "lat": r.get("lat"),
             "lon": r.get("lon"),
-            "retrieved_at": retrieved_at if retrieved_at is not None else r.get("retrieved_at"),
+            "retrieved_at": r.get("retrieved_at"),
         }
         
         _validate_required_fields(row, GOLD_REQUIRED)

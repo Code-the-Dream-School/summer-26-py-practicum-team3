@@ -19,10 +19,12 @@ def reset_fake_db():
     FAKE_DB["raw_geocoding_responses"].clear()
     FAKE_DB["raw_air_pollution_responses"].clear()
     FAKE_DB["air_pollution_gold"].clear()
+    
 
 class FakeCursor:
     def __init__(self):
         self._result = None
+        self.rowcount = 0
 
     def __enter__(self):
         return self
@@ -56,6 +58,7 @@ class FakeCursor:
                 "aqi": params["aqi"],
             }
             FAKE_DB["air_pollution_gold"].append(row)
+            self.rowcount = 1
             self._result = None
 
         # --- SELECT handling ---
@@ -82,7 +85,7 @@ class FakeCursor:
                     self._result = [(row["city_id"], row["aqi"])]
                     return
             self._result = None
-
+            
     def executemany(self, sql, rows):
         for params in rows:
             self.execute(sql, params)

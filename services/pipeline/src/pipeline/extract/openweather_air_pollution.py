@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import json
-import logging
+from pipeline.common.logging import get_logger
 from pathlib import Path
 from typing import Any
 
@@ -14,9 +14,9 @@ import requests
 
 from pipeline.common.config import settings
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
-OPENWEATHER_AIR_POLLUTION_URL = "http://api.openweathermap.org/data/2.5/air_pollution/history"
+OPENWEATHER_AIR_POLLUTION_URL = "https://api.openweathermap.org/data/2.5/air_pollution/history"
 
 
 class OpenWeatherRequestError(Exception):
@@ -64,11 +64,10 @@ class RawAirPollutionRecord:
 
 def to_transform_input(record: RawAirPollutionRecord) -> dict[str, Any]:
     """Converts a RawAirPollutionRecord into the dictionary envelope expected by the transform stage."""
-    resolved_city_id = record.city_id or f"{record.country_code.lower()}-{record.city.lower().replace(' ', '-')}"
     return {
         "status": record.status,
         "payload": record.raw_response,
-        "city_id": resolved_city_id,
+        "city_id": record.city_id,
         "city_name": record.city,
         "country_code": record.country_code,
         "state_code": record.state_code,
@@ -156,7 +155,17 @@ def _request_history(
         payload=raw_text,
     )
 
-    # 2. Parse JSON
+    if status_code != 200:
+        try:
+            data = response.json()
+        except Exception:
+            data = None
+        err_msg = f"OpenWeather returned status {status_code}"
+        if isinstance(data, dict) and "message" in data:
+            err_msg += f": {data['message']}"
+        raise OpenWeatherRequestError(err_msg)
+
+    # 2. Parse JSON (status is 200 here, body is expected to be valid JSON)
     try:
         data = response.json()
     except Exception as exc:
@@ -172,12 +181,7 @@ def _request_history(
             payload=data,
         )
 
-    if status_code != 200:
-        err_msg = f"OpenWeather returned status {status_code}"
-        if isinstance(data, dict) and "message" in data:
-            err_msg += f": {data['message']}"
-        raise OpenWeatherRequestError(err_msg)
-
+    
     if not isinstance(data, dict):
         raise OpenWeatherRequestError(f"Expected JSON object from OpenWeather, got {type(data).__name__}")
 
@@ -246,7 +250,7 @@ def fetch_air_pollution_history(
         retrieved_at = datetime.now(timezone.utc)
         log.warning(
             "Failed to fetch air pollution history from OpenWeather",
-            extra={"city": city, "country": country_code, "error": str(exc)},
+            extra={"city": city, "country": country_code, "error": str(exc), "run_id": run_id, "pipeline_run_id": pipeline_run_id},
         )
 
         # 4. Compute the file path in case it was written before the error

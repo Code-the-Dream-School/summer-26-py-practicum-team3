@@ -80,8 +80,9 @@ def upsert_air_quality_record(cursor: Any, record: dict[str, Any]) -> None:
     Updates only occur if the incoming record has a higher pipeline_run_id.
     """
     if not record:
-        return
+        return 0
     cursor.execute(AIR_QUALITY_UPSERT_SQL, record)
+    return cursor.rowcount
 
 
 def upsert_air_quality_records(cursor: Any, records: Sequence[dict[str, Any]]) -> int:
@@ -89,6 +90,5 @@ def upsert_air_quality_records(cursor: Any, records: Sequence[dict[str, Any]]) -
     count = 0
     for record in records:
         if record:
-            upsert_air_quality_record(cursor, record)
-            count += 1
+            count += upsert_air_quality_record(cursor, record)
     return count
