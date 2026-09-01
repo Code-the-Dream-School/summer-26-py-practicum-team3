@@ -7,7 +7,7 @@ import pytest
 
 from pipeline.extract.cities import City
 from pipeline.load.storage import PublishResult
-from pipeline.orchestration_runner import run_pipeline
+from pipeline.orchestration_runner import PipelineStageProgress, run_pipeline
 
 
 def make_city(city_id: str = "city-1") -> City:
@@ -20,7 +20,7 @@ def make_city(city_id: str = "city-1") -> City:
     )
 
 
-def run_it(tmp_path, *, extract, transform, load, pipeline_run_id=1):
+def run_it(tmp_path, *, extract, transform, load, pipeline_run_id=1, progress=None):
     return run_pipeline(
         cities=[make_city()],
         raw_dir=tmp_path / "raw",
@@ -34,6 +34,7 @@ def run_it(tmp_path, *, extract, transform, load, pipeline_run_id=1):
         extract=extract,
         transform=transform,
         load=load,
+        progress=progress if progress is not None else PipelineStageProgress(),
     )
 
 
@@ -76,7 +77,6 @@ def test_run_pipeline_returns_expected_result_shape_on_success(tmp_path):
         pipeline_run_id=7,
     )
 
-    assert result.status == "succeeded"
     assert result.pipeline_run_id == 7
     assert result.run_id == "20260101T000000Z"
     assert result.source == "openweather"
@@ -85,7 +85,6 @@ def test_run_pipeline_returns_expected_result_shape_on_success(tmp_path):
     assert result.city_count == 2
     assert result.raw_response_count == 2
     assert result.gold_row_count == 2
-    assert result.rows == 2
     assert result.gold_path == fake_publish_result.gold_path
     assert result.azure_blob_path is None
     assert result.postgres_table == "air_pollution_gold"
@@ -93,6 +92,7 @@ def test_run_pipeline_returns_expected_result_shape_on_success(tmp_path):
 
 def test_run_pipeline_stops_and_reports_on_stage_failure(tmp_path):
     calls: list[str] = []
+    progress = PipelineStageProgress()
 
     def fake_extract(**kwargs):
         calls.append("extract")
@@ -107,6 +107,9 @@ def test_run_pipeline_stops_and_reports_on_stage_failure(tmp_path):
         return PublishResult()
 
     with pytest.raises(ValueError, match="transform blew up"):
-        run_it(tmp_path, extract=fake_extract, transform=fake_transform, load=fake_load)
+        run_it(tmp_path, extract=fake_extract, transform=fake_transform, load=fake_load, progress=progress)
 
     assert calls == ["extract", "transform"]
+    assert progress.city_count == 1
+    assert progress.raw_response_count == 1
+    assert progress.gold_row_count is None
