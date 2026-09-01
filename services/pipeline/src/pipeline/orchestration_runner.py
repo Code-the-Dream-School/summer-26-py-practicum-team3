@@ -25,6 +25,7 @@ class PipelineRunResult:
     run_id: str
     source: str
     history_hours: int
+    status: str
     raw_records: list[RawAirPollutionRecord]
     gold_path: Path | None
     azure_blob_path: str | None
@@ -151,6 +152,7 @@ def run_pipeline(
         run_id=run_id,
         source=source,
         history_hours=history_hours,
+        status="succeeded",
         raw_records=raw_records,
         gold_path=publish_result.gold_path,
         azure_blob_path=publish_result.azure_blob_path,
