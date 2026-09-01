@@ -156,7 +156,14 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
     except Exception as exc:
         log.exception(
             "Pipeline failed",
-            extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "source": source},
+            extra={
+                "run_id": run_id,
+                "pipeline_run_id": pipeline_run_id,
+                "source": source,
+                "city_count": progress.city_count,
+                "raw_response_count": progress.raw_response_count,
+                "gold_row_count": progress.gold_row_count,
+            },
         )
         update_pipeline_run_status(
             run_id,

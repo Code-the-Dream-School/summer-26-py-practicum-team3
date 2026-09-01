@@ -25,7 +25,6 @@ class PipelineRunResult:
     run_id: str
     source: str
     history_hours: int
-    status: str
     raw_records: list[RawAirPollutionRecord]
     gold_path: Path | None
     azure_blob_path: str | None
@@ -64,21 +63,14 @@ def run_pipeline(
         extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "city_count": len(cities)},
     )
 
-    try:
-        raw_records, city_count = extract(
-            raw_dir=raw_dir,
-            cities=cities,
-            start=start,
-            end=end,
-            run_id=run_id,
-            pipeline_run_id=pipeline_run_id,
-        )
-    except Exception:
-        log.error(
-            "Extract stage failed",
-            extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id},
-        )
-        raise
+    raw_records, city_count = extract(
+        raw_dir=raw_dir,
+        cities=cities,
+        start=start,
+        end=end,
+        run_id=run_id,
+        pipeline_run_id=pipeline_run_id,
+    )
 
     progress.city_count = city_count
     progress.raw_response_count = len(raw_records)
@@ -92,16 +84,14 @@ def run_pipeline(
         },
     )
 
-    try:
-        gold_df = transform(raw_records=raw_records)
-        if not gold_df.empty:
-            gold_df["pipeline_run_id"] = pipeline_run_id
-    except Exception:
-        log.error(
-            "Transform stage failed",
-            extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "raw_response_count": len(raw_records)},
-        )
-        raise
+    log.info(
+        "Transform stage starting",
+        extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "raw_response_count": len(raw_records)},
+    )
+
+    gold_df = transform(raw_records=raw_records)
+    if not gold_df.empty:
+        gold_df["pipeline_run_id"] = pipeline_run_id
 
     progress.gold_row_count = len(gold_df)
     log.info(
@@ -109,19 +99,17 @@ def run_pipeline(
         extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "gold_row_count": len(gold_df)},
     )
 
-    try:
-        publish_result = load(
-            gold_df=gold_df,
-            gold_dir=gold_dir,
-            run_id=run_id,
-            table_name=table_name,
-        )
-    except Exception:
-        log.error(
-            "Load stage failed",
-            extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "gold_row_count": len(gold_df)},
-        )
-        raise
+    log.info(
+        "Load stage starting",
+        extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "gold_row_count": len(gold_df)},
+    )
+
+    publish_result = load(
+        gold_df=gold_df,
+        gold_dir=gold_dir,
+        run_id=run_id,
+        table_name=table_name,
+    )
 
     log.info(
         "Load stage complete",
@@ -136,23 +124,11 @@ def run_pipeline(
         },
     )
 
-    log.info(
-        "Runner finished",
-        extra={
-            "run_id": run_id,
-            "pipeline_run_id": pipeline_run_id,
-            "city_count": city_count,
-            "raw_response_count": len(raw_records),
-            "gold_row_count": len(gold_df),
-        },
-    )
-
     return PipelineRunResult(
         pipeline_run_id=pipeline_run_id,
         run_id=run_id,
         source=source,
         history_hours=history_hours,
-        status="succeeded",
         raw_records=raw_records,
         gold_path=publish_result.gold_path,
         azure_blob_path=publish_result.azure_blob_path,
