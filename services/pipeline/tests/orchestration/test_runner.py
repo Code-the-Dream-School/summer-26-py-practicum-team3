@@ -77,6 +77,7 @@ def test_run_pipeline_returns_expected_result_shape_on_success(tmp_path):
         pipeline_run_id=7,
     )
 
+    assert result.status == "succeeded"
     assert result.pipeline_run_id == 7
     assert result.run_id == "20260101T000000Z"
     assert result.source == "openweather"
