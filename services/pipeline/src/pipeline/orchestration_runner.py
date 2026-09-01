@@ -10,7 +10,7 @@ import pandas as pd
 from pipeline.common.logging import get_logger
 from pipeline.extract.cities import City
 from pipeline.extract.openweather_air_pollution import RawAirPollutionRecord
-from pipeline.load.storage import PublishResult
+from pipeline.load.storage import DEFAULT_TABLE_NAME, PublishResult
 
 log = get_logger(__name__)
 
@@ -25,7 +25,6 @@ class PipelineRunResult:
     run_id: str
     source: str
     history_hours: int
-    status: str
     raw_records: list[RawAirPollutionRecord]
     gold_path: Path | None
     azure_blob_path: str | None
@@ -33,7 +32,13 @@ class PipelineRunResult:
     city_count: int
     raw_response_count: int
     gold_row_count: int
-    rows: int
+
+
+@dataclass
+class PipelineStageProgress:
+    city_count: int | None = None
+    raw_response_count: int | None = None
+    gold_row_count: int | None = None
 
 
 def run_pipeline(
@@ -46,18 +51,13 @@ def run_pipeline(
     pipeline_run_id: int,
     source: str,
     history_hours: int,
-    table_name: str = "air_pollution_gold",
+    table_name: str = DEFAULT_TABLE_NAME,
     *,
     extract: ExtractStage,
     transform: TransformStage,
     load: LoadStage,
+    progress: PipelineStageProgress,
 ) -> PipelineRunResult:
-    """Runs the extract, transform, and load stages in order for one pipeline run.
-
-    Each stage is called only after the previous one has completed successfully.
-    If a stage raises, the exception is logged with the stage name and re-raised
-    unchanged, and no later stage is called.
-    """
     log.info(
         "Runner starting",
         extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "city_count": len(cities)},
@@ -73,23 +73,40 @@ def run_pipeline(
             pipeline_run_id=pipeline_run_id,
         )
     except Exception:
-        log.exception(
+        log.error(
             "Extract stage failed",
             extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id},
         )
         raise
 
+    progress.city_count = city_count
+    progress.raw_response_count = len(raw_records)
+    log.info(
+        "Extract stage complete",
+        extra={
+            "run_id": run_id,
+            "pipeline_run_id": pipeline_run_id,
+            "city_count": city_count,
+            "raw_response_count": len(raw_records),
+        },
+    )
+
     try:
         gold_df = transform(raw_records=raw_records)
+        if not gold_df.empty:
+            gold_df["pipeline_run_id"] = pipeline_run_id
     except Exception:
-        log.exception(
+        log.error(
             "Transform stage failed",
             extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "raw_response_count": len(raw_records)},
         )
         raise
 
-    if not gold_df.empty:
-        gold_df["pipeline_run_id"] = pipeline_run_id
+    progress.gold_row_count = len(gold_df)
+    log.info(
+        "Transform stage complete",
+        extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "gold_row_count": len(gold_df)},
+    )
 
     try:
         publish_result = load(
@@ -99,11 +116,24 @@ def run_pipeline(
             table_name=table_name,
         )
     except Exception:
-        log.exception(
+        log.error(
             "Load stage failed",
             extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "gold_row_count": len(gold_df)},
         )
         raise
+
+    log.info(
+        "Load stage complete",
+        extra={
+            "run_id": run_id,
+            "pipeline_run_id": pipeline_run_id,
+            "postgres_table": publish_result.table_name,
+            "gold_path": str(publish_result.gold_path) if publish_result.gold_path is not None else None,
+            "azure_blob_path": publish_result.azure_blob_path,
+            "rows": publish_result.rows,
+            "parquet_error": publish_result.parquet_error,
+        },
+    )
 
     log.info(
         "Runner finished",
@@ -121,7 +151,6 @@ def run_pipeline(
         run_id=run_id,
         source=source,
         history_hours=history_hours,
-        status="succeeded",
         raw_records=raw_records,
         gold_path=publish_result.gold_path,
         azure_blob_path=publish_result.azure_blob_path,
@@ -129,5 +158,4 @@ def run_pipeline(
         city_count=city_count,
         raw_response_count=len(raw_records),
         gold_row_count=len(gold_df),
-        rows=len(gold_df),
     )
