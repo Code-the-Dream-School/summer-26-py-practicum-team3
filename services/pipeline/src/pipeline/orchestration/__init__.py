@@ -10,8 +10,8 @@ from pipeline.common.logging import get_logger
 from pipeline.extract.cities import City, read_cities
 from pipeline.extract.geocoding import geocode_city
 from pipeline.extract.openweather_air_pollution import RawAirPollutionRecord, fetch_air_pollution_history
-from pipeline.load.storage import PublishResult, publish_outputs
-from pipeline.orchestration_runner import PipelineRunResult, run_pipeline
+from pipeline.load.storage import DEFAULT_TABLE_NAME, PublishResult, publish_outputs
+from pipeline.orchestration_runner import PipelineRunResult, PipelineStageProgress, run_pipeline
 from pipeline.run_tracking import PipelineRunStatusUpdate, create_pipeline_run, update_pipeline_run_status
 from pipeline.transform.openweather_air_pollution_transform import build_gold_from_raw_records
 
@@ -70,7 +70,7 @@ def run_load_stage(
     gold_df: pd.DataFrame,
     gold_dir: Path,
     run_id: str,
-    table_name: str = "air_pollution_gold",
+    table_name: str = DEFAULT_TABLE_NAME,
 ) -> PublishResult:
     return publish_outputs(
         gold_df=gold_df,
@@ -85,8 +85,6 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
     raw_dir, gold_dir = ensure_output_directories()
     start, end = build_runtime_window(resolved_history_hours)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    cities_path = Path(settings.cities_file) if settings.cities_source == "file" else None
-    cities = read_cities(cities_path)
 
     pipeline_run_id = create_pipeline_run(
         run_id=run_id,
@@ -108,7 +106,12 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
         },
     )
 
+    progress = PipelineStageProgress()
+
     try:
+        cities_path = Path(settings.cities_file) if settings.cities_source == "file" else None
+        cities = read_cities(cities_path)
+
         result = run_pipeline(
             cities=cities,
             raw_dir=raw_dir,
@@ -122,6 +125,7 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
             extract=run_extract_stage,
             transform=run_transform_stage,
             load=run_load_stage,
+            progress=progress,
         )
 
         update_pipeline_run_status(
@@ -158,6 +162,9 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
             run_id,
             PipelineRunStatusUpdate(
                 status="failed",
+                city_count=progress.city_count,
+                raw_response_count=progress.raw_response_count,
+                gold_row_count=progress.gold_row_count,
                 error_message=str(exc),
                 finished_at=datetime.now(timezone.utc),
             ),
