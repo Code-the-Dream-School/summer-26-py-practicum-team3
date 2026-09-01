@@ -1,4 +1,3 @@
-# services/pipeline/tests/integration/test_smoke_migration.py
 import psycopg
 
 
@@ -22,6 +21,7 @@ def test_migration_creates_tables(setup_test_database, migrated_schema):
     }
 
     assert expected.issubset(tables)
+
 
 def test_cities_columns(migrated_schema, setup_test_database):
     with psycopg.connect(setup_test_database) as conn:

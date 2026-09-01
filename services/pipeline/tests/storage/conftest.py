@@ -68,3 +68,45 @@ def migrated_schema(setup_test_database, pytestconfig):
 
     return db_url
 
+
+@pytest.fixture
+def db_connection(setup_test_database, migrated_schema):
+    """Real psycopg connection, truncated after each test."""
+    conn = psycopg.connect(setup_test_database)
+    try:
+        yield conn
+    finally:
+        with conn.cursor() as cur:
+            cur.execute("""
+                TRUNCATE TABLE
+                    air_pollution_gold,
+                    raw_air_pollution_responses,
+                    raw_geocoding_responses,
+                    pipeline_runs,
+                    cities
+                RESTART IDENTITY CASCADE;
+            """)
+        conn.commit()
+        conn.close()
+
+
+@pytest.fixture
+def seeded_city_and_run(db_connection):
+    """Insert one city + one pipeline_run required for FK-dependent tests."""
+    with db_connection.cursor() as cur:
+        cur.execute("""
+            INSERT INTO cities (city_id, city_name, country_code, timezone, active)
+            VALUES ('us-los-angeles-ca', 'Los Angeles', 'US', 'America/Los_Angeles', true)
+            RETURNING city_id;
+        """)
+        (city_id,) = cur.fetchone()
+
+        cur.execute("""
+            INSERT INTO pipeline_runs (run_id, source, history_hours, window_start_utc,
+                window_end_utc, status, city_count, raw_response_count, gold_row_count)
+            VALUES ('test-run-1', 'test', 1, NOW(), NOW(), 'running', 0, 0, 0)
+            RETURNING pipeline_run_id
+        """)
+        (pipeline_run_id,) = cur.fetchone()
+
+    return city_id, pipeline_run_id
