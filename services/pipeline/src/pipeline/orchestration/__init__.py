@@ -64,6 +64,14 @@ def run_extract_stage(
             country_code=city.country_code,
             state=city.state,
         )
+        
+        if coords is None:
+            log.warning(
+                "Geocoding failed or returned no coordinates, skipping city",
+                extra={"city": city.city, "country_code": city.country_code, "state": city.state}
+            )
+            continue
+
         raw_record = fetch_air_pollution_history(
             raw_dir=raw_dir,
             city_id=city.city_id,
