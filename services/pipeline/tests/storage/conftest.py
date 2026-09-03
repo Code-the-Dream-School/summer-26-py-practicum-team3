@@ -76,6 +76,7 @@ def db_connection(setup_test_database, migrated_schema):
     try:
         yield conn
     finally:
+        conn.rollback()
         with conn.cursor() as cur:
             cur.execute("""
                 TRUNCATE TABLE

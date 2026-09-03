@@ -115,7 +115,6 @@ def test_write_new_raw_and_gold(db_connection, seeded_city_and_run):
                 "retrieved_at": now,
             }
         ],
-        retrieved_at=now,
     )
 
     assert _count(db_connection, "raw_geocoding_responses") == 1
@@ -123,7 +122,6 @@ def test_write_new_raw_and_gold(db_connection, seeded_city_and_run):
     assert _count(db_connection, "air_pollution_gold") == 1
 
 
-@pytest.mark.xfail(reason="AIR_QUALITY_UPSERT_SQL missing retrieved_at/pipeline_run_id columns")
 def test_upsert_no_duplicates(db_connection, seeded_city_and_run):
     """Upsert with identical input does not create duplicate gold records."""
     city_id, pipeline_run_id = seeded_city_and_run
@@ -160,7 +158,6 @@ def test_upsert_no_duplicates(db_connection, seeded_city_and_run):
     assert _count(db_connection, "air_pollution_gold") == 1
 
 
-@pytest.mark.xfail(reason="AIR_QUALITY_UPSERT_SQL missing retrieved_at/pipeline_run_id columns")
 def test_upsert_updates_existing_values(db_connection, seeded_city_and_run):
     """Upsert with modified values updates the existing gold record."""
     city_id, pipeline_run_id = seeded_city_and_run
@@ -191,10 +188,23 @@ def test_upsert_updates_existing_values(db_connection, seeded_city_and_run):
         "retrieved_at": now,
     }
 
-    updated = {**original, "aqi": 4, "aqi_label": "Poor", "pm2_5": 30.0,}
+    ### creating second pipeline_run (FK constraint)
+    with db_connection.cursor() as cur2:
+        cur2.execute("""
+                INSERT INTO pipeline_runs (
+                    run_id, source, history_hours, window_start_utc,
+                    window_end_utc, status, city_count, raw_response_count, gold_row_count
+                )
+                VALUES ('test-run-2', 'test', 1, NOW(), NOW(), 'running', 0, 0, 0)
+                RETURNING pipeline_run_id;
+            """)
+        (new_pipeline_run_id,) = cur2.fetchone()
+
+    updated = {**original, "aqi": 4, "aqi_label": "Poor", "pm2_5": 30.0, "pipeline_run_id": new_pipeline_run_id }
 
     upsert_air_quality_record(cur, original)
     upsert_air_quality_record(cur, updated)
+    db_connection.commit()
 
     assert _count(db_connection, "air_pollution_gold") == 1
 
@@ -212,36 +222,22 @@ def test_upsert_updates_existing_values(db_connection, seeded_city_and_run):
     assert row == (4, "Poor", 30.0)
 
 
-def test_empty_input(db_connection):
-    """Empty or missing input is handled gracefully."""
-    cur = db_connection.cursor()
-
-    # save_transformed_records should return 0 for empty list
-    assert save_transformed_records(cur, [], datetime.now(timezone.utc)) == 0
-
-    # upsert should ignore None input
-    upsert_air_quality_record(cur, None)
-
-    # invalid input should raise
-    with pytest.raises(psycopg.ProgrammingError):
-        upsert_air_quality_record(cur, {"city_id": None})
-
-
 def test_empty_and_missing_input_behaviour(db_connection: psycopg.Connection, seeded_city_and_run: tuple[str, int]) -> None:
     """empty/missing input handling for gold and upsert."""
     city_id, pipeline_run_id = seeded_city_and_run
     now = datetime.now(timezone.utc)
 
     # empty list → save_transformed_records returns 0 and writes nothing
-    inserted = save_transformed_records(db_connection, [], retrieved_at=now)
-    assert inserted == 0
+    assert save_transformed_records(db_connection, []) == 0
     assert _count(db_connection, "air_pollution_gold") == 0
 
     # None record → upsert_air_quality_record writes nothing
     with db_connection.cursor() as cur:
-        upsert_air_quality_record(cur, None)
+        assert upsert_air_quality_record(cur, None) == 0
 
-    assert _count(db_connection, "air_pollution_gold") == 0
+    # invalid input should raise ValueError
+    with pytest.raises(ValueError):
+        save_transformed_records(db_connection, [{"city_id": None}])
 
     # missing required field → ValueError and table stays empty
     bad_record = {
@@ -267,8 +263,7 @@ def test_empty_and_missing_input_behaviour(db_connection: psycopg.Connection, se
         "retrieved_at": now,
     }
 
-    with db_connection.cursor() as cur:
-        with pytest.raises(psycopg.ProgrammingError):
-            upsert_air_quality_record(cur, bad_record)
+    with pytest.raises(ValueError):
+        save_transformed_records(db_connection, [bad_record])
 
     assert _count(db_connection, "air_pollution_gold") == 0

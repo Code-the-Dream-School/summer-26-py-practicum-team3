@@ -4,9 +4,6 @@ import psycopg
 from alembic import command
 from alembic.config import Config
 
-from pathlib import Path
-
-ALEMBIC_INI = Path("services/pipeline/alembic.ini")
 
 TABLES = {
     "cities",
