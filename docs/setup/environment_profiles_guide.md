@@ -7,7 +7,7 @@ how local runs versus scheduled/CI runs should be configured.
 
 ### Application settings (`pipeline.common.config.Settings`)
 
-These are loaded from a `.env` file (or process environment) by `pydantic-settings`. See
+These are loaded from a `.env` file or the process environment by `pydantic-settings`. See
 `services/pipeline/src/pipeline/common/config.py`.
 
 | Variable | Required | Default | Notes |
@@ -27,7 +27,7 @@ exported or present in `.env` regardless of which settings class picks them up.
 | Variable | Required | Notes |
 | --- | --- | --- |
 | `DATABASE_URL` | Yes, for migrations and any DB-backed run | Read in `services/pipeline/alembic/env.py`. Format: `postgresql+psycopg://<user>:<password>@<host>:<port>/<db>`. |
-| `TEST_DATABASE_URL` | Yes, for storage/integration tests | Points at a separate scratch database so tests never touch dev or prod data. |
+| `TEST_DATABASE_URL` | Yes, for storage/integration tests | Points at a separate scratch database so tests never touch dev or prod data. No storage/integration tests exist in this repo yet — this documents the intended setup. |
 
 ## What's safe to commit
 
@@ -55,9 +55,10 @@ exported or present in `.env` regardless of which settings class picks them up.
    TEST_DATABASE_URL=postgresql+psycopg://<username>:<password>@localhost:5432/city_air_tracker_test
    ```
 2. Make sure PostgreSQL is running locally (see `docs/setup/database_migrations.md`).
-3. `pydantic-settings` and Alembic's `env.py` both call `load_dotenv()`/read `.env` automatically,
-   so no manual `export` is needed as long as commands are run from a directory where `.env` is
-   discoverable (repo root).
+3. Both `pydantic-settings` and Alembic's `env.py` automatically load values from `.env`, so no
+   manual `export` is needed as long as commands are run from a directory where `.env` is
+   discoverable (repo root). Note that Alembic commands themselves must be run from
+   `services/pipeline/` (where `alembic.ini` lives) — see `docs/setup/database_migrations.md`.
 4. Never point `DATABASE_URL` and `TEST_DATABASE_URL` at the same database — the test suite
    creates and drops schema objects.
 
