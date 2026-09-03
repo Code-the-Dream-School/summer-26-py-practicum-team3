@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import json
-import logging
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pycountry
 from pydantic import BaseModel, StrictBool, ValidationError, field_validator
 
-logger = logging.getLogger(__name__)
+from pipeline.common.logging import get_logger
+
+log = get_logger(__name__)
 
 
 class City(BaseModel):
@@ -97,11 +98,11 @@ def read_cities(path: Path | None) -> list[City]:
             city_id values are found.
     """
     if path is None:
-        logger.warning("Cities input source is missing.")
+        log.warning("Cities input source is missing.")
         return []
 
     if not path.exists():
-        logger.warning("Cities input file does not exist: %s", path)
+        log.warning("Cities input file does not exist: %s", path)
         return []
 
     with path.open() as file:
@@ -111,7 +112,7 @@ def read_cities(path: Path | None) -> list[City]:
         raise ValueError("Cities input must contain a JSON list.")
 
     if not raw_cities:
-        logger.warning("Cities input file is empty: %s", path)
+        log.warning("Cities input file is empty: %s", path)
         return []
 
     cities: list[City] = []
@@ -129,7 +130,7 @@ def read_cities(path: Path | None) -> list[City]:
 
 def _build_city(raw_city: object, index: int) -> City | None:
     if not isinstance(raw_city, dict):
-        logger.warning(
+        log.warning(
             "Skipping city entry #%d because it is not an object.",
             index,
         )
@@ -138,7 +139,7 @@ def _build_city(raw_city: object, index: int) -> City | None:
     try:
         return City(**raw_city)
     except ValidationError as error:
-        logger.warning(
+        log.warning(
             "Skipping city entry #%d because it is invalid: %s",
             index,
             error,
