@@ -15,26 +15,17 @@ observation for one city at one observation timestamp.
 A record is considered new when no existing Gold record has the same
 `city_id` and `observed_at`.
 
-The record is inserted.
+The record is inserted into `air_pollution_gold`.
 
-## Updated Record
+## Updated Record & Conflict Resolution
 
-A record is considered an update when an existing Gold record has the same
-`city_id` and `observed_at`.
+A record is considered an update when an existing Gold record in the database
+shares the same `(city_id, observed_at)`.
 
-The incoming transformed record replaces the existing record's values.
+The incoming transformed record updates the existing record **only if** the incoming
+record has a strictly higher pipeline execution identifier:
 
-## Repeated Pipeline Runs
-
-If a repeated or subsequent pipeline run produces an observation with the
-same `city_id` and `observed_at`, the existing record is updated rather
-than a duplicate record being created.
-
-## Database Constraint
-
-The database must enforce uniqueness on:
-
-`(city_id, observed_at)`
-
-This allows the PostgreSQL upsert operation to use
-`ON CONFLICT (city_id, observed_at)` as its conflict target.
+```sql
+ON CONFLICT (city_id, observed_at)
+DO UPDATE SET ...
+WHERE EXCLUDED.pipeline_run_id > air_pollution_gold.pipeline_run_id;

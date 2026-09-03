@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Callable
 
 import pandas as pd
 
@@ -63,14 +63,26 @@ def run_pipeline(
         extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "city_count": len(cities)},
     )
 
-    raw_records, city_count = extract(
-        raw_dir=raw_dir,
-        cities=cities,
-        start=start,
-        end=end,
-        run_id=run_id,
-        pipeline_run_id=pipeline_run_id,
+    log.info(
+        "Extract stage starting",
+        extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "city_count": len(cities)},
     )
+
+    try:
+        raw_records, city_count = extract(
+            raw_dir=raw_dir,
+            cities=cities,
+            start=start,
+            end=end,
+            run_id=run_id,
+            pipeline_run_id=pipeline_run_id,
+        )
+    except Exception:
+        log.error(
+            "Extract stage failed",
+            extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id},
+        )
+        raise
 
     progress.city_count = city_count
     progress.raw_response_count = len(raw_records)
@@ -89,9 +101,16 @@ def run_pipeline(
         extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "raw_response_count": len(raw_records)},
     )
 
-    gold_df = transform(raw_records=raw_records)
-    if not gold_df.empty:
-        gold_df["pipeline_run_id"] = pipeline_run_id
+    try:
+        gold_df = transform(raw_records=raw_records)
+        if not gold_df.empty:
+            gold_df["pipeline_run_id"] = pipeline_run_id
+    except Exception:
+        log.error(
+            "Transform stage failed",
+            extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "raw_response_count": len(raw_records)},
+        )
+        raise
 
     progress.gold_row_count = len(gold_df)
     log.info(
@@ -104,12 +123,19 @@ def run_pipeline(
         extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "gold_row_count": len(gold_df)},
     )
 
-    publish_result = load(
-        gold_df=gold_df,
-        gold_dir=gold_dir,
-        run_id=run_id,
-        table_name=table_name,
-    )
+    try:
+        publish_result = load(
+            gold_df=gold_df,
+            gold_dir=gold_dir,
+            run_id=run_id,
+            table_name=table_name,
+        )
+    except Exception:
+        log.error(
+            "Load stage failed",
+            extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id, "gold_row_count": len(gold_df)},
+        )
+        raise
 
     log.info(
         "Load stage complete",

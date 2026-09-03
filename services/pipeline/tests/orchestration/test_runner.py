@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 
 import pandas as pd
 import pytest
-
 from pipeline.extract.cities import City
 from pipeline.load.storage import PublishResult
 from pipeline.orchestration_runner import PipelineStageProgress, run_pipeline

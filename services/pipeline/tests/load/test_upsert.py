@@ -35,9 +35,11 @@ def make_record(**overrides):
 class FakeCursor:
     def __init__(self):
         self.executed = []
+        self.rowcount = 0
 
     def execute(self, sql, parameters):
         self.executed.append((sql, parameters))
+        self.rowcount = 1
 
 
 def test_new_record_is_inserted():

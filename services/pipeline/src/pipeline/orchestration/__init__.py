@@ -9,11 +9,23 @@ from pipeline.common.config import settings
 from pipeline.common.logging import get_logger
 from pipeline.extract.cities import City, read_cities
 from pipeline.extract.geocoding import geocode_city
-from pipeline.extract.openweather_air_pollution import RawAirPollutionRecord, fetch_air_pollution_history
+from pipeline.extract.openweather_air_pollution import (
+    RawAirPollutionRecord,
+    fetch_air_pollution_history,
+    to_transform_input,
+)
 from pipeline.load.storage import DEFAULT_TABLE_NAME, PublishResult, publish_outputs
-from pipeline.orchestration_runner import PipelineRunResult, PipelineStageProgress, run_pipeline
-from pipeline.run_tracking import PipelineRunStatusUpdate, create_pipeline_run, update_pipeline_run_status
-from pipeline.transform.openweather_air_pollution_transform import build_gold_from_raw_records
+from pipeline.orchestration_runner import (
+    PipelineRunResult,
+    PipelineStageProgress,
+    run_pipeline,
+)
+from pipeline.run_tracking import (
+    PipelineRunStatusUpdate,
+    create_pipeline_run,
+    update_pipeline_run_status,
+)
+from pipeline.transform.transform import transform_raw_response
 
 __all__ = ["PipelineRunResult", "run_pipeline_job"]
 
@@ -46,10 +58,20 @@ def run_extract_stage(
             country_code=city.country_code,
             state=city.state,
         )
+        
+        if coords is None:
+            log.warning(
+                "Geocoding failed or returned no coordinates, skipping city",
+                extra={"city": city.city, "country_code": city.country_code, "state": city.state}
+            )
+            continue
+
         raw_record = fetch_air_pollution_history(
             raw_dir=raw_dir,
+            city_id=city.city_id,
             city=city.city,
             country_code=city.country_code,
+            state_code=city.state,
             lat=coords.lat,
             lon=coords.lon,
             start=start,
@@ -63,7 +85,13 @@ def run_extract_stage(
 
 
 def run_transform_stage(raw_records: list[RawAirPollutionRecord]) -> pd.DataFrame:
-    return build_gold_from_raw_records(raw_records=raw_records)
+    transformed_records: list[dict] = []
+    for record in raw_records:
+        envelope = to_transform_input(record)
+        clean_records = transform_raw_response(envelope)
+        transformed_records.extend(clean_records)
+
+    return pd.DataFrame(transformed_records)
 
 
 def run_load_stage(
