@@ -17,6 +17,7 @@ def test_save_transformed_records_success(conn):
             "run_id": "run123",
             "pipeline_run_id": 1,
             "observed_at": now,
+            "retrieved_at": now,
             "aqi": 42,
             "aqi_label": "Good",
             "pm2_5": 5.1,
@@ -32,7 +33,7 @@ def test_save_transformed_records_success(conn):
         }
     ]
 
-    count = save_transformed_records(conn, records, retrieved_at=now)
+    count = save_transformed_records(conn, records)
     assert count == 1
 
     with conn.cursor() as cur:
@@ -48,7 +49,7 @@ def test_save_transformed_records_success(conn):
 
 
 def test_save_transformed_records_empty(conn):
-    count = save_transformed_records(conn, [], datetime.now(timezone.utc))
+    count = save_transformed_records(conn, [])
     assert count == 0
 
 
@@ -61,4 +62,4 @@ def test_save_transformed_records_missing_required(conn):
     ]
 
     with pytest.raises(ValueError):
-        save_transformed_records(conn, records, datetime.now(timezone.utc))
+        save_transformed_records(conn, records)
