@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from typing import Iterator
 
 import psycopg
 import pytest
@@ -9,8 +8,15 @@ from alembic import command
 from alembic.config import Config
 
 from sqlalchemy.engine import make_url
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 load_dotenv(dotenv_path="services/pipeline/.env")
+
+# Debug info if env vars are missing
+if not os.getenv("TEST_DATABASE_URL"):
+    print("TEST_DATABASE_URL not loaded")
+    print("CWD:", Path.cwd())
+    print("Explicit env path:", Path("services/pipeline/.env").resolve())
+    print("Found .env:", find_dotenv())
 
 
 @pytest.fixture(scope="session")
