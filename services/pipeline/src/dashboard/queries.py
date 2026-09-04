@@ -8,6 +8,21 @@ from typing import Any
 import psycopg
 
 
+def _execute_and_fetch(
+    conn: psycopg.Connection[dict[str, Any]],
+    query: str,
+    params: dict[str, Any] | tuple[Any, ...] | None = None,
+) -> list[dict[str, Any]]:
+    """Execute a query safely, handle database errors with rollback, and fetch results."""
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            return list(cur.fetchall())
+    except psycopg.Error:
+        conn.rollback()
+        raise
+
+
 def list_cities(conn: psycopg.Connection[dict[str, Any]]) -> list[dict[str, Any]]:
     """Fetch all active configured cities sorted alphabetically.
 
@@ -27,9 +42,7 @@ def list_cities(conn: psycopg.Connection[dict[str, Any]]) -> list[dict[str, Any]
         WHERE active = true
         ORDER BY city_name ASC;
     """
-    with conn.cursor() as cur:
-        cur.execute(query)
-        return list(cur.fetchall())
+    return _execute_and_fetch(conn, query)
 
 
 def get_latest_readings(conn: psycopg.Connection[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -84,9 +97,7 @@ def get_latest_readings(conn: psycopg.Connection[dict[str, Any]]) -> list[dict[s
         WHERE rn = 1
         ORDER BY city_name ASC;
     """
-    with conn.cursor() as cur:
-        cur.execute(query)
-        return list(cur.fetchall())
+    return _execute_and_fetch(conn, query)
 
 
 def get_city_history(
@@ -100,12 +111,15 @@ def get_city_history(
     Args:
         conn: Open database connection.
         city_id: Target string city identifier (e.g. 'berlin-de').
-        start: Inclusive window start timestamp.
-        end: Inclusive window end timestamp.
+        start: Inclusive window start timestamp, must be timezone-aware.
+        end: Inclusive window end timestamp, must be timezone-aware.
 
     Returns:
         Chronologically sorted list of observed pollution measurements.
     """
+    if start.tzinfo is None or end.tzinfo is None:
+        raise ValueError("start and end datetimes must be timezone-aware.")
+
     query = """
         SELECT
             g.city_id,
@@ -134,9 +148,7 @@ def get_city_history(
         "start": start,
         "end": end,
     }
-    with conn.cursor() as cur:
-        cur.execute(query, params)
-        return list(cur.fetchall())
+    return _execute_and_fetch(conn, query, params)
 
 
 def get_cities_comparison(
@@ -150,14 +162,17 @@ def get_cities_comparison(
     Args:
         conn: Open database connection.
         city_ids: List of target string city identifiers (e.g. ['berlin-de', 'london-gb']).
-        start: Inclusive window start timestamp.
-        end: Inclusive window end timestamp.
+        start: Inclusive window start timestamp, must be timezone-aware.
+        end: Inclusive window end timestamp, must be timezone-aware.
 
     Returns:
         List of observations across all selected cities sorted by city and timestamp.
     """
     if not city_ids:
         return []
+
+    if start.tzinfo is None or end.tzinfo is None:
+        raise ValueError("start and end datetimes must be timezone-aware.")
 
     query = """
         SELECT
@@ -187,6 +202,4 @@ def get_cities_comparison(
         "start": start,
         "end": end,
     }
-    with conn.cursor() as cur:
-        cur.execute(query, params)
-        return list(cur.fetchall())
+    return _execute_and_fetch(conn, query, params)

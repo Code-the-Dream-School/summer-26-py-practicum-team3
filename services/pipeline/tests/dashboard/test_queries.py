@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import MagicMock
 
+import pytest
+
 from dashboard.queries import (
     get_cities_comparison,
     get_city_history,
@@ -95,6 +97,19 @@ def test_get_city_history() -> None:
     assert params == {"city_id": "berlin-de", "start": start, "end": end}
 
 
+def test_get_city_history_raises_on_naive_datetime() -> None:
+    """Verify get_city_history raises ValueError when naive datetimes are provided."""
+    naive_dt = datetime(2026, 9, 1, 0, 0)
+    aware_dt = datetime(2026, 9, 2, 0, 0, tzinfo=timezone.utc)
+    mock_conn = MagicMock()
+
+    with pytest.raises(ValueError, match="timezone-aware"):
+        get_city_history(mock_conn, city_id="berlin-de", start=naive_dt, end=aware_dt)
+
+    with pytest.raises(ValueError, match="timezone-aware"):
+        get_city_history(mock_conn, city_id="berlin-de", start=aware_dt, end=naive_dt)
+
+
 def test_get_cities_comparison_with_ids() -> None:
     """Verify get_cities_comparison passes string city_ids list to query."""
     start = datetime(2026, 9, 1, 0, 0, tzinfo=timezone.utc)
@@ -132,6 +147,19 @@ def test_get_cities_comparison_with_ids() -> None:
     assert "state_code" in query
     assert "active = true" in query
     assert params == {"city_ids": ["berlin-de", "london-gb"], "start": start, "end": end}
+
+
+def test_get_cities_comparison_raises_on_naive_datetime() -> None:
+    """Verify get_cities_comparison raises ValueError when naive datetimes are provided."""
+    naive_dt = datetime(2026, 9, 1, 0, 0)
+    aware_dt = datetime(2026, 9, 2, 0, 0, tzinfo=timezone.utc)
+    mock_conn = MagicMock()
+
+    with pytest.raises(ValueError, match="timezone-aware"):
+        get_cities_comparison(mock_conn, city_ids=["berlin-de"], start=naive_dt, end=aware_dt)
+
+    with pytest.raises(ValueError, match="timezone-aware"):
+        get_cities_comparison(mock_conn, city_ids=["berlin-de"], start=aware_dt, end=naive_dt)
 
 
 def test_get_cities_comparison_empty_list_returns_immediately() -> None:

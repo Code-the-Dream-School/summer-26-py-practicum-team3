@@ -25,6 +25,9 @@ def get_connection() -> psycopg.Connection[dict[str, Any]]:
         >>> def init_connection():
         ...     return get_connection()
 
+    The connection operates in autocommit mode because the dashboard layer 
+    is strictly read-only.
+
     Raises:
         ValueError: If DATABASE_URL is not configured in the environment or .env file.
     """
@@ -32,4 +35,4 @@ def get_connection() -> psycopg.Connection[dict[str, Any]]:
     if not db_url:
         raise ValueError("DATABASE_URL must be configured in environment or .env file.")
 
-    return psycopg.connect(db_url, row_factory=dict_row)
+    return psycopg.connect(db_url, row_factory=dict_row, autocommit=True)
