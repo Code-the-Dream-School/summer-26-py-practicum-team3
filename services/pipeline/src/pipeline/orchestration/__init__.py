@@ -19,9 +19,7 @@ from pipeline.load.storage import PublishResult, publish_outputs
 from pipeline.run_tracking import PipelineRunStatusUpdate, create_pipeline_run, update_pipeline_run_status
 from pipeline.transform.transform import transform_raw_response
 
-
 log = get_logger(__name__)
-
 
 @dataclass(frozen=True)
 class PipelineRunResult:
@@ -59,23 +57,25 @@ def run_extract_stage(
 
     for city in cities:
         coords = geocode_city(
-            raw_dir=raw_dir,
             city=city.city,
             country_code=city.country_code,
             state=city.state,
+            raw_dir=raw_dir,
+            run_id=run_id,
+            pipeline_run_id=pipeline_run_id,
         )
-        
+
+        # Handle geocoding failures
         if coords is None:
             log.warning(
                 "Geocoding failed or returned no coordinates, skipping city",
-
                 extra={
                     "run_id": run_id,
                     "pipeline_run_id": pipeline_run_id,
                     "city": city.city,
                     "country_code": city.country_code,
-                    "state": city.state,
-                },
+                    "state": city.state
+                }
             )
             continue
 
@@ -241,6 +241,7 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
             },
         )
         return result
+
     except Exception as exc:
         log.exception(
             "Pipeline failed",

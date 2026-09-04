@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import pytest
 from pydantic import SecretStr
 
@@ -399,3 +400,24 @@ def test_geocoding_logger_uses_shared_context_formatter():
         isinstance(h.formatter, ContextFormatter) for h in handlers
     )
     assert has_context_formatter, "Logger must use ContextFormatter to preserve extraction context"
+
+
+def test_geocode_city_logs_run_id_and_pipeline_run_id(caplog):
+    """Verifies that run_id and pipeline_run_id are included in the log extra context."""
+    caplog.set_level(logging.WARNING)
+    
+    # Trigger a known failure, e.g., missing API key or unknown city
+    geocoding.geocode_city(
+        city="", 
+        country_code="US", 
+        run_id="test-run-123", 
+        pipeline_run_id=999
+    )
+    
+    warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(warning_records) > 0, "Warning should have been logged"
+    
+    # Verify the extra fields are injected
+    for record in warning_records:
+        assert getattr(record, "run_id", None) == "test-run-123"
+        assert getattr(record, "pipeline_run_id", None) == 999

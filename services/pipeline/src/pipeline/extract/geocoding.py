@@ -75,6 +75,8 @@ def geocode_city(
     country_code: str,
     state: str | None = None,
     raw_dir: Path | None = None,
+    run_id: str | None = None,
+    pipeline_run_id: int | None = None,
 ) -> Coordinates | None:
     """Resolve a city's coordinates using the geocoding API and fallbacks.
 
@@ -84,6 +86,8 @@ def geocode_city(
         state: Optional state or region used to narrow the geocoding query.
         raw_dir: Optional directory where the raw geocoding API response
             is saved.
+        run_id: Optional identifier for the current pipeline run.
+        pipeline_run_id: Optional database identifier for the pipeline run.
 
     Returns:
         A Coordinates object with the source set to "geocoded" or "fallback",
@@ -94,7 +98,13 @@ def geocode_city(
 
     if not api_key:
         log.warning(
-            "OpenWeather API key is not configured; skipping geocoding API request."
+            "OpenWeather API key is not configured; skipping geocoding API request.",
+            extra={
+                "city": city,
+                "country_code": country_code,
+                "run_id": run_id,
+                "pipeline_run_id": pipeline_run_id
+            }
         )
 
         fallback = _get_fallback_coordinates(
@@ -137,6 +147,12 @@ def geocode_city(
                 city,
                 country_code,
                 response.status_code,
+                extra={
+                    "city": city,
+                    "country_code": country_code,
+                    "run_id": run_id,
+                    "pipeline_run_id": pipeline_run_id
+                }
             )
         else:
             results = response.json()
@@ -154,6 +170,12 @@ def geocode_city(
                 "Geocoding API returned no results for %s, %s.",
                 city,
                 country_code,
+                extra={
+                    "city": city,
+                    "country_code": country_code,
+                    "run_id": run_id,
+                    "pipeline_run_id": pipeline_run_id
+                }
             )
 
     except (
@@ -167,6 +189,12 @@ def geocode_city(
             city,
             country_code,
             exc,
+            extra={
+                "city": city,
+                "country_code": country_code,
+                "run_id": run_id,
+                "pipeline_run_id": pipeline_run_id
+            }
         )
 
     fallback = _get_fallback_coordinates(
@@ -180,6 +208,12 @@ def geocode_city(
             "Using fallback coordinates for %s, %s.",
             city,
             country_code,
+            extra={
+                "city": city,
+                "country_code": country_code,
+                "run_id": run_id,
+                "pipeline_run_id": pipeline_run_id
+            }
         )
 
         return Coordinates(
@@ -192,6 +226,12 @@ def geocode_city(
         "No coordinates found for %s, %s.",
         city,
         country_code,
+        extra={
+            "city": city,
+            "country_code": country_code,
+            "run_id": run_id,
+            "pipeline_run_id": pipeline_run_id
+        }
     )
 
     return None

@@ -7,6 +7,7 @@ import uuid
 
 import pytest
 
+from pipeline.common import config
 from pipeline.common.logging import ContextFormatter, get_logger
 
 
@@ -23,8 +24,6 @@ def test_logger_defaults_to_info_level() -> None:
 
 def test_logger_respects_debug_level_from_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify that setting log_level to DEBUG updates the logger effective level accordingly."""
-    from pipeline.common import config
-
     monkeypatch.setattr(config.settings, "log_level", "DEBUG")
 
     test_log = get_logger(_get_unique_logger_name())
@@ -33,8 +32,6 @@ def test_logger_respects_debug_level_from_settings(monkeypatch: pytest.MonkeyPat
 
 def test_logger_case_insensitive_log_level(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify that lowercase log level names are correctly normalized and parsed."""
-    from pipeline.common import config
-
     monkeypatch.setattr(config.settings, "log_level", "warning")
 
     test_log = get_logger(_get_unique_logger_name())
@@ -43,8 +40,6 @@ def test_logger_case_insensitive_log_level(monkeypatch: pytest.MonkeyPatch) -> N
 
 def test_logger_falls_back_to_info_on_invalid_level(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify graceful fallback to INFO level when an invalid level name is encountered."""
-    from pipeline.common import config
-
     monkeypatch.setattr(config.settings, "log_level", "INVALID_LEVEL_NAME")
 
     test_log = get_logger(_get_unique_logger_name())
@@ -86,3 +81,21 @@ def test_context_formatter_without_extras() -> None:
 
     formatted_output = formatter.format(record)
     assert formatted_output == "[INFO] Standard log message"
+
+
+def test_get_logger_updates_log_level_on_subsequent_calls(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verifies that changing settings.log_level updates an existing logger's level."""
+    logger_name = _get_unique_logger_name()
+    
+    # First call
+    monkeypatch.setattr(config.settings, "log_level", "DEBUG")
+    log1 = get_logger(logger_name)
+    assert log1.level == logging.DEBUG
+    
+    # Second call with new level
+    monkeypatch.setattr(config.settings, "log_level", "WARNING")
+    log2 = get_logger(logger_name)
+    
+    # The logger instance is the same, but the level should be updated
+    assert log2 is log1
+    assert log2.level == logging.WARNING
