@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import logging
 import pytest
 from pydantic import SecretStr
 
+from pipeline.common.logging import ContextFormatter
 from pipeline.extract import geocoding
 
 
@@ -383,3 +385,39 @@ def test_geocode_city_uses_fallback_when_api_key_is_not_configured(
     assert coordinates.lat == 36.1699
     assert coordinates.lon == -115.1398
     assert coordinates.source == "fallback"
+
+
+def test_geocoding_logger_uses_shared_context_formatter():
+    """
+    Verifies that the module-level logger goes through the shared get_logger()
+    helper and is configured with ContextFormatter.
+    """
+    handlers = geocoding.log.handlers
+    assert len(handlers) > 0, "Logger should have at least one handler attached"
+    
+    # Verify that at least one handler uses the required formatter
+    has_context_formatter = any(
+        isinstance(h.formatter, ContextFormatter) for h in handlers
+    )
+    assert has_context_formatter, "Logger must use ContextFormatter to preserve extraction context"
+
+
+def test_geocode_city_logs_run_id_and_pipeline_run_id(caplog):
+    """Verifies that run_id and pipeline_run_id are included in the log extra context."""
+    caplog.set_level(logging.WARNING)
+    
+    # Trigger a known failure, e.g., missing API key or unknown city
+    geocoding.geocode_city(
+        city="", 
+        country_code="US", 
+        run_id="test-run-123", 
+        pipeline_run_id=999
+    )
+    
+    warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(warning_records) > 0, "Warning should have been logged"
+    
+    # Verify the extra fields are injected
+    for record in warning_records:
+        assert getattr(record, "run_id", None) == "test-run-123"
+        assert getattr(record, "pipeline_run_id", None) == 999
