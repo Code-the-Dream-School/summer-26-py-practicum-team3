@@ -63,6 +63,7 @@ def get_latest_readings(conn: psycopg.Connection[dict[str, Any]]) -> list[dict[s
                 c.state_code,
                 g.observed_at,
                 g.aqi,
+                g.aqi_label,
                 g.co,
                 g.no,
                 g.no2,
@@ -85,6 +86,7 @@ def get_latest_readings(conn: psycopg.Connection[dict[str, Any]]) -> list[dict[s
             state_code,
             observed_at,
             aqi,
+            aqi_label,
             co,
             no,
             no2,
@@ -98,7 +100,6 @@ def get_latest_readings(conn: psycopg.Connection[dict[str, Any]]) -> list[dict[s
         ORDER BY city_name ASC;
     """
     return _execute_and_fetch(conn, query)
-
 
 def get_city_history(
     conn: psycopg.Connection[dict[str, Any]],
