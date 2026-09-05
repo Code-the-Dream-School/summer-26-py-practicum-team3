@@ -27,7 +27,7 @@ exported or present in `.env` regardless of which settings class picks them up.
 | Variable | Required | Notes |
 | --- | --- | --- |
 | `DATABASE_URL` | Yes, for migrations and any DB-backed run | Read in `services/pipeline/alembic/env.py`. Format: `postgresql+psycopg://<user>:<password>@<host>:<port>/<db>`. |
-| `TEST_DATABASE_URL` | Yes, for storage/integration tests | Points at a separate scratch database so tests never touch dev or prod data. No storage/integration tests exist in this repo yet — this documents the intended setup. |
+| `TEST_DATABASE_URL` | Yes, for storage/integration tests | Points at a separate scratch database so tests never touch dev or prod data. Format: `postgresql+psycopg://<user>:<password>@<host>:<port>/<db_test>`. No storage/integration tests exist in this repo yet — this documents the intended setup. |
 
 ## What's safe to commit
 
