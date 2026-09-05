@@ -26,12 +26,12 @@ def test_run_extract_stage_skips_failed_geocoding_with_context(
     caplog.set_level("WARNING")
 
     with (
-        patch("pipeline.orchestration.read_cities", return_value=[dummy_city]),
         patch("pipeline.orchestration.geocode_city", return_value=None),
         patch("pipeline.orchestration.fetch_air_pollution_history") as mock_fetch,
     ):
         raw_records, total_cities = run_extract_stage(
             raw_dir=tmp_path,
+            cities=[dummy_city],
             start=now,
             end=now,
             run_id=expected_run_id,
