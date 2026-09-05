@@ -1,0 +1,136 @@
+[
+  {
+    "city_name": "Las Vegas",
+    "country_code": "US",
+    "city_id": "las-vegas",
+    "timezone": "America/Los_Angeles",
+    "active": true,
+    "state_code": "NV"
+  },
+  {
+    "city_name": "Berlin",
+    "country_code": "DE",
+    "city_id": "berlin-de",
+    "timezone": "Europe/Berlin",
+    "active": true
+  },
+  {
+    "city_name": "London",
+    "country_code": "GB",
+    "city_id": "london-gb",
+    "timezone": "Europe/London",
+    "active": true
+  },
+  {
+    "city_name": "New York",
+    "country_code": "US",
+    "city_id": "new-york",
+    "timezone": "America/New_York",
+    "active": true,
+    "state_code": "NY"
+  },
+  {
+    "city_name": "Los Angeles",
+    "country_code": "US",
+    "city_id": "los-angeles",
+    "timezone": "America/Los_Angeles",
+    "active": true,
+    "state_code": "CA"
+  },
+  {
+    "city_name": "San Francisco",
+    "country_code": "US",
+    "city_id": "san-francisco",
+    "timezone": "America/Los_Angeles",
+    "active": true,
+    "state_code": "CA"
+  },
+  {
+    "city_name": "San Diego",
+    "country_code": "US",
+    "city_id": "san-diego",
+    "timezone": "America/Los_Angeles",
+    "active": true,
+    "state_code": "CA"
+  },
+  {
+    "city_name": "San Antonio",
+    "country_code": "US",
+    "city_id": "san-antonio",
+    "timezone": "America/Chicago",
+    "active": true,
+    "state_code": "TX"
+  },
+  {
+    "city_name": "San Jose",
+    "country_code": "US",
+    "city_id": "san-jose",
+    "timezone": "America/Los_Angeles",
+    "active": true,
+    "state_code": "CA"
+  },
+  {
+    "city_name": "Salt Lake City",
+    "country_code": "US",
+    "city_id": "salt-lake-city",
+    "timezone": "America/Denver",
+    "active": true,
+    "state_code": "UT"
+  },
+  {
+    "city_name": "Coeur d'Alene",
+    "country_code": "US",
+    "city_id": "coeur-d-alene",
+    "timezone": "America/Los_Angeles",
+    "active": true,
+    "state_code": "ID"
+  },
+  {
+    "city_name": "Lake O'the Cherokees",
+    "country_code": "US",
+    "city_id": "lake-o-the-cherokees",
+    "timezone": "America/Chicago",
+    "active": true,
+    "state_code": "OK"
+  },
+  {
+    "city_name": "Winston-Salem",
+    "country_code": "US",
+    "city_id": "winston-salem",
+    "timezone": "America/New_York",
+    "active": true,
+    "state_code": "NC"
+  },
+  {
+    "city_name": "Wilkes-Barre",
+    "country_code": "US",
+    "city_id": "wilkes-barre",
+    "timezone": "America/New_York",
+    "active": true,
+    "state_code": "PA"
+  },
+  {
+    "city_name": "Grand Rapids",
+    "country_code": "US",
+    "city_id": "grand-rapids",
+    "timezone": "America/Detroit",
+    "active": true,
+    "state_code": "MI"
+  },
+  {
+    "city_name": "Fort Worth",
+    "country_code": "US",
+    "city_id": "fort-worth",
+    "timezone": "America/Chicago",
+    "active": true,
+    "state_code": "TX"
+  },
+  {
+    "city_name": "Virginia Beach",
+    "country_code": "US",
+    "city_id": "virginia-beach",
+    "timezone": "America/New_York",
+    "active": true,
+    "state_code": "VA"
+  }
+]
