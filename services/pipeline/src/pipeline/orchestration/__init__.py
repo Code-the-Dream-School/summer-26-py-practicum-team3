@@ -62,7 +62,14 @@ def run_extract_stage(
         if coords is None:
             log.warning(
                 "Geocoding failed or returned no coordinates, skipping city",
-                extra={"city": city.city, "country_code": city.country_code, "state": city.state}
+
+                extra={
+                    "run_id": run_id,
+                    "pipeline_run_id": pipeline_run_id,
+                    "city": city.city,
+                    "country_code": city.country_code,
+                    "state": city.state,
+                },
             )
             continue
 

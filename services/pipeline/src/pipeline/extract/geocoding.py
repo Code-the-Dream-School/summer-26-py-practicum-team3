@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import re
 from pathlib import Path
 from typing import Literal
@@ -9,8 +8,9 @@ import requests
 from pydantic import BaseModel, ValidationError
 
 from pipeline.common.config import settings
+from pipeline.common.logging import get_logger
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 GEOCODING_URL = "https://api.openweathermap.org/geo/1.0/direct"
 
@@ -93,7 +93,7 @@ def geocode_city(
     api_key = settings.openweather_api_key.get_secret_value().strip()
 
     if not api_key:
-        logger.warning(
+        log.warning(
             "OpenWeather API key is not configured; skipping geocoding API request."
         )
 
@@ -132,7 +132,7 @@ def geocode_city(
         )
 
         if response.status_code != 200:
-            logger.warning(
+            log.warning(
                 "Geocoding API request failed for %s, %s: HTTP %s",
                 city,
                 country_code,
@@ -150,7 +150,7 @@ def geocode_city(
                     source="geocoded",
                 )
 
-            logger.warning(
+            log.warning(
                 "Geocoding API returned no results for %s, %s.",
                 city,
                 country_code,
@@ -162,7 +162,7 @@ def geocode_city(
         KeyError,
         ValidationError,
     ) as exc:
-        logger.warning(
+        log.warning(
             "Geocoding API request failed for %s, %s: %s",
             city,
             country_code,
@@ -176,7 +176,7 @@ def geocode_city(
     )
 
     if fallback is not None:
-        logger.warning(
+        log.warning(
             "Using fallback coordinates for %s, %s.",
             city,
             country_code,
@@ -188,7 +188,7 @@ def geocode_city(
             source="fallback",
         )
 
-    logger.warning(
+    log.warning(
         "No coordinates found for %s, %s.",
         city,
         country_code,
