@@ -17,6 +17,8 @@ log = get_logger(__name__)
 
 SAFE_RUN_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
+DEFAULT_TABLE_NAME = "air_pollution_gold"
+
 
 @dataclass
 class PublishResult:
@@ -33,7 +35,7 @@ def publish_outputs(
     gold_df: pd.DataFrame,
     gold_dir: Path | None,
     run_id: str,
-    table_name: str = "air_pollution_gold",
+    table_name: str = DEFAULT_TABLE_NAME,
 ) -> PublishResult:
     """Publishes transformed Gold records to secondary Parquet storage and PostgreSQL.
 
