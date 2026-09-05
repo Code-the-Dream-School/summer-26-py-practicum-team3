@@ -5,7 +5,7 @@
 The scheduler calls:
 
 ```bash
-    python src/pipeline/scheduler
+    python src/pipeline/scheduler.py
 ```
 
 This wraps `pipeline.orchestration.run_pipeline_job(source="scheduler")` - the same
@@ -47,8 +47,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.12'
       - run: pip install -r requirements.txt
+        working-directory: .
       - run: python src/pipeline/scheduler.py
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
@@ -131,8 +132,7 @@ This uses `workflow_dispatch`, exercising the same entrypoint the  cron uses.
 ```
 
    Confirm rows exist*. This table is always the primary export target in `publish_outputs` -
-   Postgres write is attempted on every non-empty run regardless
-   of Parquet archival settings.
+   Postgres write is attempted on every non-empty run regardless of Parquet archival settings.
 
 >  Note*: `pipeline_runs` status (`pipeline.run_tracking`) is currently backed by an **in‑memory** repository, not Postgres. 
    It does **not** persist across process restarts, so after a GitHub Actions job finishes, 
