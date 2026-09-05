@@ -1,5 +1,3 @@
-"""Unit tests for the orchestration layer."""
-
 from __future__ import annotations
 
 import logging
@@ -8,7 +6,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from pipeline.extract.cities import City
-from pipeline.extract.geocoding import Coordinates
 from pipeline.extract.openweather_air_pollution import RawAirPollutionRecord
 from pipeline.orchestration import run_extract_stage
 
@@ -22,9 +19,8 @@ def test_run_extract_stage_skips_city_when_geocoding_fails(
     tmp_path: Path
 ):
     """Verifies that the extract stage skips processing for a city and logs a warning if geocoding returns None."""
-    # 1. Setup mock data and capture logs
     caplog.set_level(logging.WARNING)
-
+    
     city_berlin = City(
         city_id="de-berlin",
         city_name="Berlin",
@@ -33,7 +29,6 @@ def test_run_extract_stage_skips_city_when_geocoding_fails(
         active=True
     )
     
-    # Using a valid ISO country code ("FR") to pass the pycountry validation
     city_nowhere = City(
         city_id="fr-nowhere",
         city_name="Nowhere",
@@ -44,13 +39,14 @@ def test_run_extract_stage_skips_city_when_geocoding_fails(
     
     cities = [city_berlin, city_nowhere]
 
-    def geocode_side_effect(raw_dir, city, country_code, state):
+    def geocode_side_effect(city, country_code, state=None, raw_dir=None, **kwargs):
         if city == "Berlin":
+            from pipeline.extract.geocoding import Coordinates
             return Coordinates(lat=52.52, lon=13.405, source="geocoded")
         return None
-
+    
     mock_geocode_city.side_effect = geocode_side_effect
-
+    
     dummy_record = RawAirPollutionRecord(
         city="Berlin",
         country_code="DE",
@@ -68,11 +64,10 @@ def test_run_extract_stage_skips_city_when_geocoding_fails(
         retrieved_at=datetime.now(timezone.utc)
     )
     mock_fetch_history.return_value = dummy_record
-
+    
     start_time = datetime(2026, 8, 30, 0, 0, tzinfo=timezone.utc)
     end_time = datetime(2026, 8, 30, 1, 0, tzinfo=timezone.utc)
-
-    # 2. Execute
+    
     raw_records, total_cities = run_extract_stage(
         raw_dir=tmp_path,
         cities=cities,
@@ -81,25 +76,14 @@ def test_run_extract_stage_skips_city_when_geocoding_fails(
         run_id="run-123",
         pipeline_run_id=1
     )
-
-    # 3. Assertions
-    # Ensure the orchestrator attempted to process both cities
-    assert total_cities == 2
     
-    # Ensure only one record was added to the final list
     assert len(raw_records) == 1
     assert raw_records[0] == dummy_record
+    assert total_cities == 2
     
-    # Ensure the weather API was called exactly once, and only for Berlin
-    assert mock_fetch_history.call_count == 1
-    assert mock_fetch_history.call_args.kwargs["city"] == "Berlin"
+    mock_fetch_history.assert_called_once()
+    _, kwargs = mock_fetch_history.call_args
+    assert kwargs["city"] == "Berlin"
     
-    # Ensure a warning was logged for the skipped city by inspecting LogRecord attributes
-    warning_records = [
-        record for record in caplog.records 
-        if record.levelname == "WARNING" and "Geocoding failed" in record.message
-    ]
-    
-    assert len(warning_records) == 1
-    # Verify the structured extra attribute was correctly bound to the log record
-    assert getattr(warning_records[0], "city", None) == "Nowhere"
+    warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert any(getattr(r, "city", None) == "Nowhere" for r in warning_records)

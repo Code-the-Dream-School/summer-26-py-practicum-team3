@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 import sys
 
+from pipeline.common.config import settings
+
 # Baseline set of standard LogRecord attributes to ignore when parsing extra fields.
 # Note: 'message' and 'asctime' are populated dynamically during Formatter.format() and must be added explicitly.
 _STANDARD_RECORD_ATTRS = (
@@ -34,26 +36,27 @@ class ContextFormatter(logging.Formatter):
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Configures and returns a standard logger instance supporting contextual extra fields."""
+    """Configures and returns a logger with the shared ContextFormatter."""
     logger = logging.getLogger(name)
 
+    # Attach handler only once
     if not logger.handlers:
         handler = logging.StreamHandler(sys.stdout)
         formatter = ContextFormatter(
-            fmt="[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
+            fmt="%(asctime)s [%(levelname)s] [%(name)s]: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
         )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
-        # Lazy import to ensure the logging module remains fully functional 
-        # regardless of any configuration or settings parsing errors.
-        try:
-            from pipeline.common.config import settings
-            level_name = getattr(settings, "log_level", "INFO").upper()
-        except Exception:  # noqa: BLE001
-            level_name = "INFO"
+    # Update log level on every call
+    level_name = getattr(settings, "log_level", "INFO").upper()
+    level = getattr(logging, level_name, None)
 
-        logger.setLevel(getattr(logging, level_name, logging.INFO))
+    if level is None:
+        logger.setLevel(logging.INFO)
+        logger.warning(f"Invalid log level '{level_name}' configured. Falling back to INFO.")
+    else:
+        logger.setLevel(level)
 
     return logger
