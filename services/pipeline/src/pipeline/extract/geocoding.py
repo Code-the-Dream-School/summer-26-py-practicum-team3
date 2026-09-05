@@ -238,7 +238,7 @@ def _save_raw_response(
 
     filename = f"{_city_filename(city, country_code, state)}_geocoding.json"
 
-    (raw_dir / filename).write_text(response)
+    (raw_dir / filename).write_text(response, encoding="utf-8")
 
 
 def _city_filename(

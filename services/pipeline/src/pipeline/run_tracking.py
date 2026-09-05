@@ -199,3 +199,22 @@ def create_pipeline_run(
 def update_pipeline_run_status(run_id: str, update: PipelineRunStatusUpdate) -> None:
     """Updates the status and counters of an existing pipeline run."""
     _default_repository.update_status(run_id=run_id, update=update)
+    
+def list_pipeline_runs(limit: int = 10) -> list[PipelineRunRecord]:
+    """Return the most recent pipeline runs, up to the requested limit.
+
+    Added for CLI run-history support. This provides the public interface
+    needed by the CLI to retrieve pipeline runs, but currently reads from
+    the existing in-memory repository. This is not a PostgreSQL implementation;
+    the underlying storage should be replaced with the database-backed
+    implementation from the pipeline run-tracking work.
+    """
+    if limit <= 0:
+        raise ValueError("limit must be greater than 0.")
+
+    runs = list(_default_repository._runs_store.values())
+
+    # Most recent first.
+    runs.sort(key=lambda run: run.created_at, reverse=True)
+
+    return runs[:limit]
