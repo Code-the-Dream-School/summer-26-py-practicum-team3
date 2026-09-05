@@ -12,9 +12,7 @@ from pipeline.orchestration import run_extract_stage
 
 @patch("pipeline.orchestration.fetch_air_pollution_history")
 @patch("pipeline.orchestration.geocode_city")
-@patch("pipeline.orchestration.read_cities")
 def test_run_extract_stage_skips_city_when_geocoding_fails(
-    mock_read_cities,
     mock_geocode_city,
     mock_fetch_history,
     caplog,
@@ -39,8 +37,8 @@ def test_run_extract_stage_skips_city_when_geocoding_fails(
         active=True
     )
     
-    mock_read_cities.return_value = [city_berlin, city_nowhere]
-    
+    cities = [city_berlin, city_nowhere]
+
     def geocode_side_effect(city, country_code, state=None, raw_dir=None, **kwargs):
         if city == "Berlin":
             from pipeline.extract.geocoding import Coordinates
@@ -72,6 +70,7 @@ def test_run_extract_stage_skips_city_when_geocoding_fails(
     
     raw_records, total_cities = run_extract_stage(
         raw_dir=tmp_path,
+        cities=cities,
         start=start_time,
         end=end_time,
         run_id="run-123",
