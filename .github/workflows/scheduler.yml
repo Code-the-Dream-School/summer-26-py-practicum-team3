@@ -1,0 +1,21 @@
+name: Scheduled Pipeline Run
+
+on:
+  schedule:
+    - cron: '0 12 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: pip install -r services/pipeline/requirements.txt
+      - run: python -m pipeline.scheduler
+        working-directory: services/pipeline/src
+        env:
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
