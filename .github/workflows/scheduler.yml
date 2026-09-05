@@ -17,8 +17,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt
+        working-directory: .
       - run: python src/pipeline/scheduler.py
-        working-directory: services/pipeline/src
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
