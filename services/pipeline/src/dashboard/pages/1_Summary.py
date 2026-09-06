@@ -1,114 +1,100 @@
-"""Summary view for the latest air quality readings across active cities."""
+"""Summary view: the latest air quality reading for every active city."""
 
-from datetime import datetime, timezone, timedelta
+from __future__ import annotations
+
+from datetime import datetime, timezone
 
 import psycopg
 import streamlit as st
 
-from dashboard.app import init_connection
+from dashboard.db import init_connection
+from dashboard.format_data import (
+    aqi_display,
+    city_label,
+    format_relative_time,
+    is_stale,
+)
 from dashboard.queries import get_latest_readings
 
-# OpenWeather AQI scale mapping for UI colors
-AQI_COLORS = {
-    1: ("Good", "🟢"),
-    2: ("Fair", "🟡"),
-    3: ("Moderate", "🟠"),
-    4: ("Poor", "🔴"),
-    5: ("Very Poor", "🟣"),
+# Sort options -> a key function over a reading row. Sorting happens client-side
+# on the already-fetched rows: one row per active city is a small list.
+_OLDEST = datetime.min.replace(tzinfo=timezone.utc)
+SORT_OPTIONS: dict[str, tuple] = {
+    "City name": (lambda row: city_label(row).lower(), False),
+    "AQI (worst first)": (lambda row: row.get("aqi") or 0, True),
+    "Last updated": (lambda row: row.get("observed_at") or _OLDEST, True),
 }
 
-# Assume data is stale if older than 3 hours (adjust based on pipeline schedule)
-STALE_THRESHOLD = timedelta(hours=3)
 
-def format_relative_time(dt: datetime) -> str:
-    """Format datetime into a readable relative string."""
-    now = datetime.now(timezone.utc)
-    diff = now - dt
-    minutes = int(diff.total_seconds() / 60)
-    
-    if minutes < 60:
-        return f"{minutes}m ago"
-    hours = minutes // 60
-    return f"{hours}h ago"
-
-def render_summary():
+def render_summary() -> None:
     st.title("📊 Current Air Quality Summary")
-    
-    # 1. Loading State & Error Handling for Connection
+
+    # Connection: configuration and database errors both surface as a message
+    # rather than an unhandled traceback on the page.
     try:
         conn = init_connection()
-    except ValueError as e:
-        st.error(f"Configuration Error: {e}")
+    except ValueError as exc:
+        st.error(f"Configuration Error: {exc}")
         return
-    except psycopg.Error as e:
-        st.error(f"Database Connection Error: {e}")
+    except psycopg.Error as exc:
+        st.error(f"Database Connection Error: {exc}")
         return
 
-    # 2. Loading State & Error Handling for Query
+    # Loading state around the query itself.
     with st.spinner("Fetching latest readings..."):
         try:
             readings = get_latest_readings(conn)
-        except psycopg.Error as e:
-            st.error(f"Failed to fetch data: {e}")
+        except psycopg.Error as exc:
+            st.error(f"Failed to fetch data: {exc}")
             return
 
-    # 3. Empty State
+    # Empty state: the query worked, there is simply nothing stored yet.
     if not readings:
         st.info("No air pollution data available. Run the pipeline to populate the database.")
         return
 
-    # 4. Render Data
     st.write(f"Showing latest observations for {len(readings)} active cities.")
-    
+
+    sort_choice = st.selectbox("Sort by", options=list(SORT_OPTIONS.keys()), index=0)
+    key_func, descending = SORT_OPTIONS[sort_choice]
+    readings = sorted(readings, key=key_func, reverse=descending)
+
     now = datetime.now(timezone.utc)
-    
-    # Render in a grid (3 columns per row)
     cols = st.columns(3)
-    
+
     for idx, row in enumerate(readings):
-        col = cols[idx % 3]
-        
-        city = row['city_name']
-        country = row['country_code']
-        state = f", {row['state_code']}" if row.get('state_code') else ""
-        location = f"{city} ({country}{state})"
-        
-        aqi = row['aqi']
-        # Fallback if label is missing or unknown
-        label_text, icon = AQI_COLORS.get(aqi, (row.get('aqi_label', 'Unknown'), "⚪"))
-        
-        observed_at = row['observed_at']
-        is_stale = (now - observed_at) > STALE_THRESHOLD
-        
-        with col:
-            with st.container(border=True):
-                st.subheader(location)
-                
-                # Stale data badge
-                if is_stale:
-                    st.warning(f"⚠️ Stale data ({format_relative_time(observed_at)})")
-                else:
-                    st.caption(f"🕒 Updated {format_relative_time(observed_at)}")
-                
-                st.metric(
-                    label="Air Quality Index",
-                    value=f"{icon} {aqi} - {label_text}"
+        observed_at = row.get("observed_at")
+        label_text, icon = aqi_display(row.get("aqi"), row.get("aqi_label"))
+
+        with cols[idx % 3], st.container(border=True):
+            st.subheader(city_label(row))
+
+            # Stale-data state: flag it instead of presenting it as current.
+            if is_stale(observed_at, now):
+                st.warning(f"⚠️ Stale data ({format_relative_time(observed_at)})")
+            else:
+                st.caption(f"🕒 Updated {format_relative_time(observed_at)}")
+
+            aqi = row.get("aqi")
+            st.metric(
+                label="Air Quality Index",
+                value=f"{icon} {aqi} - {label_text}" if aqi is not None else f"{icon} {label_text}",
+            )
+
+            with st.expander("View Pollutants (μg/m³)", expanded=False):
+                st.markdown(
+                    f"""
+                    - **PM2.5**: {row.get('pm2_5')}
+                    - **PM10**: {row.get('pm10')}
+                    - **CO**: {row.get('co')}
+                    - **NO2**: {row.get('no2')}
+                    - **O3**: {row.get('o3')}
+                    - **SO2**: {row.get('so2')}
+                    - **NH3**: {row.get('nh3')}
+                    - **NO**: {row.get('no')}
+                    """
                 )
-                
-                # Expandable section for pollutant details
-                with st.expander("View Pollutants (μg/m³)", expanded=False):
-                    st.markdown(
-                        f"""
-                        - **PM2.5**: {row['pm2_5']}
-                        - **PM10**: {row['pm10']}
-                        - **CO**: {row['co']}
-                        - **NO2**: {row['no2']}
-                        - **O3**: {row['o3']}
-                        - **SO2**: {row['so2']}
-                        - **NH3**: {row['nh3']}
-                        - **NO**: {row['no']}
-                        """
-                    )
+
 
 if __name__ == "__main__":
     render_summary()

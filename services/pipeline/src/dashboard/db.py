@@ -1,4 +1,4 @@
-"""Database connection helpers for the dashboard service."""
+"""Database connection helpers for the dashboard's read-only data-serving layer."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import re
 from typing import Any
 
 import psycopg
+import streamlit as st
 from psycopg.rows import dict_row
 
 from dashboard.config import settings
@@ -27,20 +28,12 @@ def _to_psycopg_dsn(database_url: str) -> str:
 def get_connection() -> psycopg.Connection[dict[str, Any]]:
     """Open and return a new PostgreSQL connection using dict_row factory.
 
-    Note on connection lifecycle and caching:
-        Callers (e.g., Streamlit views) are responsible for managing the connection
-        lifecycle. In Streamlit applications, wrap the connection provider in
-        `@st.cache_resource` to avoid opening a new TCP connection on every page rerun:
+    The connection operates in autocommit mode because the dashboard layer is
+    strictly read-only: without it every SELECT would leave an idle transaction
+    open for the lifetime of the cached connection.
 
-        >>> import streamlit as st
-        >>> from dashboard.db import get_connection
-        >>>
-        >>> @st.cache_resource
-        >>> def init_connection():
-        ...     return get_connection()
-
-    The connection operates in autocommit mode because the dashboard layer 
-    is strictly read-only.
+    Prefer `init_connection()` below in Streamlit code — it caches this
+    connection across reruns instead of opening a new TCP connection each time.
 
     Raises:
         ValueError: If DATABASE_URL is not configured in the environment or .env file.
@@ -50,3 +43,14 @@ def get_connection() -> psycopg.Connection[dict[str, Any]]:
         raise ValueError("DATABASE_URL must be configured in environment or .env file.")
 
     return psycopg.connect(_to_psycopg_dsn(db_url), row_factory=dict_row, autocommit=True)
+
+
+@st.cache_resource
+def init_connection() -> psycopg.Connection[dict[str, Any]]:
+    """Return a cached database connection, shared across Streamlit reruns.
+
+    Lives here rather than in app.py so that page modules can import it without
+    executing app.py's top-level UI code (which would render the landing
+    banner a second time on top of the page).
+    """
+    return get_connection()

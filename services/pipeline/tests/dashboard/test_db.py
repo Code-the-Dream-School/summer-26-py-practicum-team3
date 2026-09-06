@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import SecretStr
 
+from dashboard import db
 from dashboard.db import _to_psycopg_dsn
 
 
@@ -37,3 +39,37 @@ def test_to_psycopg_dsn_strips_sqlalchemy_driver_suffix(database_url: str, expec
     suffix. This normalization lets both consumers share one DATABASE_URL value.
     """
     assert _to_psycopg_dsn(database_url) == expected
+
+
+def test_get_connection_unwraps_the_secret_and_normalizes_the_dsn(monkeypatch) -> None:
+    """get_connection() must hand psycopg a plain, normalized connection string.
+
+    database_url is a SecretStr, so it has to be unwrapped before the regex
+    normalization runs — passing the SecretStr through would fail at connect time,
+    which no mock-based page test would catch.
+    """
+    monkeypatch.setattr(
+        db.settings, "database_url", SecretStr("postgresql+psycopg://user@localhost:5432/db")
+    )
+    captured: dict[str, object] = {}
+
+    def fake_connect(dsn, **kwargs):
+        captured["dsn"] = dsn
+        captured["kwargs"] = kwargs
+        return object()
+
+    monkeypatch.setattr(db.psycopg, "connect", fake_connect)
+    db.get_connection()
+
+    assert captured["dsn"] == "postgresql://user@localhost:5432/db"
+    # The dashboard is read-only: without autocommit every SELECT leaves an
+    # idle transaction open on the cached connection.
+    assert captured["kwargs"]["autocommit"] is True
+
+
+def test_get_connection_requires_database_url(monkeypatch) -> None:
+    """An unset DATABASE_URL raises ValueError, which pages render as an error state."""
+    monkeypatch.setattr(db.settings, "database_url", SecretStr(""))
+
+    with pytest.raises(ValueError, match="DATABASE_URL"):
+        db.get_connection()
