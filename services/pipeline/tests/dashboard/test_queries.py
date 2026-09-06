@@ -56,6 +56,7 @@ def test_get_latest_readings() -> None:
             "state_code": None,
             "observed_at": now,
             "aqi": 2,
+            "aqi_label": "Fair",
         },
     ]
     mock_conn = _create_mock_connection(expected)
