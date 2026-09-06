@@ -145,3 +145,28 @@ def test_run_pipeline_job_marks_run_failed_and_keeps_raw_rows(postgres_configure
 
     assert status == "failed"
     assert "boom" in error_message
+
+
+def _raise_connection_blip():
+    raise RuntimeError("connection blip")
+
+
+def test_run_pipeline_job_marks_run_failed_when_extract_connection_fails(
+    postgres_configured, monkeypatch: pytest.MonkeyPatch
+):
+    """A transient connection failure *after* the pipeline_runs row exists must not leave it
+    stuck at status='running' — it must be marked failed like any other stage failure."""
+    conn = postgres_configured
+    monkeypatch.setattr("pipeline.orchestration.get_connection", _raise_connection_blip)
+
+    with pytest.raises(RuntimeError, match="connection blip"):
+        run_pipeline_job(source="test")
+
+    assert _count(conn, "pipeline_runs") == 1
+
+    with conn.cursor() as cur:
+        cur.execute("SELECT status, error_message FROM pipeline_runs;")
+        status, error_message = cur.fetchone()
+
+    assert status == "failed"
+    assert "connection blip" in error_message

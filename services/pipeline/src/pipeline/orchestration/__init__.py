@@ -177,38 +177,39 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
     start, end = build_runtime_window(resolved_history_hours)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
-    pipeline_run_id = create_pipeline_run(
-        run_id=run_id,
-        source=source,
-        history_hours=resolved_history_hours,
-        window_start_utc=start,
-        window_end_utc=end,
-    )
-
-    log.info(
-        "Pipeline starting",
-        extra={
-            "run_id": run_id,
-            "pipeline_run_id": pipeline_run_id,
-            "source": source,
-            "history_hours": resolved_history_hours,
-            "window_start_utc": start.isoformat(),
-            "window_end_utc": end.isoformat(),
-        },
-    )
-
     progress = PipelineStageProgress()
-
     conn: psycopg.Connection | None = None
-    if settings.database_url.get_secret_value().strip():
-        conn = get_connection()
-    else:
-        log.info(
-            "DATABASE_URL not configured; Postgres writes will be skipped for this run",
-            extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id},
-        )
+    pipeline_run_id: int | None = None
 
     try:
+        pipeline_run_id = create_pipeline_run(
+            run_id=run_id,
+            source=source,
+            history_hours=resolved_history_hours,
+            window_start_utc=start,
+            window_end_utc=end,
+        )
+
+        log.info(
+            "Pipeline starting",
+            extra={
+                "run_id": run_id,
+                "pipeline_run_id": pipeline_run_id,
+                "source": source,
+                "history_hours": resolved_history_hours,
+                "window_start_utc": start.isoformat(),
+                "window_end_utc": end.isoformat(),
+            },
+        )
+
+        if settings.database_url.get_secret_value().strip():
+            conn = get_connection()
+        else:
+            log.info(
+                "DATABASE_URL not configured; Postgres writes will be skipped for this run",
+                extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id},
+            )
+
         cities_path = Path(settings.cities_file) if settings.cities_source == "file" else None
         cities = read_cities(cities_path)
 
@@ -266,17 +267,20 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
                 "gold_row_count": progress.gold_row_count,
             },
         )
-        update_pipeline_run_status(
-            run_id,
-            PipelineRunStatusUpdate(
-                status="failed",
-                city_count=progress.city_count,
-                raw_response_count=progress.raw_response_count,
-                gold_row_count=progress.gold_row_count,
-                error_message=str(exc),
-                finished_at=datetime.now(timezone.utc),
-            ),
-        )
+        if pipeline_run_id is not None:
+            # Only update a row that was actually created — create_pipeline_run itself may be
+            # what failed (e.g. Postgres briefly unreachable), in which case there's no row yet.
+            update_pipeline_run_status(
+                run_id,
+                PipelineRunStatusUpdate(
+                    status="failed",
+                    city_count=progress.city_count,
+                    raw_response_count=progress.raw_response_count,
+                    gold_row_count=progress.gold_row_count,
+                    error_message=str(exc),
+                    finished_at=datetime.now(timezone.utc),
+                ),
+            )
         raise
     finally:
         if conn is not None:
