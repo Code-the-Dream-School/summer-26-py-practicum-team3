@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import SecretStr
-
 from pipeline.common.logging import ContextFormatter
 from pipeline.extract import geocoding
+from pydantic import SecretStr
 
 
 class MockResponse:

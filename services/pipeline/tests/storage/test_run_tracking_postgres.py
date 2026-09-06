@@ -9,10 +9,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
-from pydantic import SecretStr
-
 from pipeline.common import config
 from pipeline.run_tracking import PipelineRunStatusUpdate, PostgresPipelineRunRepository
+from pydantic import SecretStr
 
 START = datetime(2026, 1, 1, tzinfo=timezone.utc)
 END = datetime(2026, 1, 2, tzinfo=timezone.utc)

@@ -3,14 +3,12 @@
 from datetime import datetime, timezone
 
 import psycopg
-
 import pytest
-
-from pipeline.load.raw import (
-    save_raw_geocoding_response,
-    save_raw_air_pollution_response,
-)
 from pipeline.load.gold import save_transformed_records
+from pipeline.load.raw import (
+    save_raw_air_pollution_response,
+    save_raw_geocoding_response,
+)
 from pipeline.load.upsert import upsert_air_quality_record
 
 

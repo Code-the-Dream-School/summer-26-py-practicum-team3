@@ -5,10 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 import psycopg
+from pipeline.common.db import normalize_dsn
 from psycopg.rows import dict_row
 
 from dashboard.config import settings
-from pipeline.common.db import normalize_dsn
 
 
 def get_connection() -> psycopg.Connection[dict[str, Any]]:

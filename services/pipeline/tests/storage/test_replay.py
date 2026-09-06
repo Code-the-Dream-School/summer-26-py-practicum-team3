@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import psycopg
 import pytest
-from pydantic import SecretStr
-
 from pipeline.common import config
 from pipeline.orchestration import run_pipeline_job, run_replay_job
+from pydantic import SecretStr
 
 
 def _fake_geocode_city(*, city, country_code, state, raw_dir):

@@ -35,7 +35,7 @@ _SELECT_COLUMNS = (
     "created_at",
     "finished_at",
 )
-_SELECT_SQL = f"SELECT {', '.join(_SELECT_COLUMNS)} FROM pipeline_runs"  # noqa: S608
+_SELECT_SQL = f"SELECT {', '.join(_SELECT_COLUMNS)} FROM pipeline_runs"
 
 
 @dataclass

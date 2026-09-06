@@ -11,14 +11,13 @@ from datetime import datetime, timedelta, timezone
 
 import psycopg
 import pytest
-from pydantic import SecretStr
-
 from pipeline.common import config
 from pipeline.extract.cities import City
 from pipeline.extract.geocoding import Coordinates
 from pipeline.extract.openweather_air_pollution import RawAirPollutionRecord
 from pipeline.orchestration import run_pipeline_job
 from pipeline.run_tracking import _default_repository, list_pipeline_runs
+from pydantic import SecretStr
 
 CITY = City(
     city_id="us-testville-tx",

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
+
 import psycopg
 from psycopg.types.json import Jsonb
-
 
 RAW_GEOCODING_SQL = """
     INSERT INTO raw_geocoding_responses (

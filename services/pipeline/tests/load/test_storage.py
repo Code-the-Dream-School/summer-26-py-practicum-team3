@@ -2,11 +2,10 @@
 
 from pathlib import Path
 from unittest.mock import patch
+
 import pandas as pd
 import pytest
-
 from pipeline.load.storage import PublishResult, publish_outputs
-
 
 # ============================================================================
 # 1. Fixtures

@@ -11,7 +11,6 @@ These cover two edge cases found in review:
 from __future__ import annotations
 
 import pytest
-
 from pipeline.orchestration import run_pipeline_job
 
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import psycopg
-
 from pipeline.extract.cities import City
 from pipeline.load.cities import upsert_cities
 

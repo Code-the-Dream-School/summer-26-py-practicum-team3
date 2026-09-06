@@ -1,10 +1,9 @@
 """Unit tests for pipeline run tracking functionality and schema constraints."""
 
-from datetime import datetime, timezone
 import time
-import pytest
-from pydantic import SecretStr
+from datetime import datetime, timezone
 
+import pytest
 from pipeline.common import config
 from pipeline.run_tracking import (
     InMemoryPipelineRunRepository,
@@ -14,6 +13,7 @@ from pipeline.run_tracking import (
     create_pipeline_run,
     update_pipeline_run_status,
 )
+from pydantic import SecretStr
 
 
 @pytest.fixture(autouse=True)

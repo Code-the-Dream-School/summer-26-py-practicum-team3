@@ -6,7 +6,6 @@ import logging
 import uuid
 
 import pytest
-
 from pipeline.common.logging import ContextFormatter, get_logger
 
 

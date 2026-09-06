@@ -7,7 +7,6 @@ and replaced with proper integration tests using a real database.
 
 import pytest
 
-
 # In-memory "tables"
 FAKE_DB = {
     "raw_geocoding_responses": [],

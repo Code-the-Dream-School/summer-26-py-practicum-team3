@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import SecretStr
-
 from pipeline.common import config
 from pipeline.common.db import get_connection, normalize_dsn
+from pydantic import SecretStr
 
 
 def test_normalize_dsn_strips_sqlalchemy_psycopg_scheme() -> None:

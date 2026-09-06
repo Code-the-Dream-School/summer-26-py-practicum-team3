@@ -1,6 +1,7 @@
 import psycopg
 from sqlalchemy.engine import make_url
 
+
 def test_database_name_is_safe(setup_test_database):
     assert isinstance(setup_test_database, str)
     assert setup_test_database.startswith("postgresql://")
@@ -14,7 +15,6 @@ def test_database_name_is_safe(setup_test_database):
     )
 
 def test_database_is_reachable(setup_test_database):
-    with psycopg.connect(setup_test_database) as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT 1;")
-            assert cur.fetchone()[0] == 1
+    with psycopg.connect(setup_test_database) as conn, conn.cursor() as cur:
+        cur.execute("SELECT 1;")
+        assert cur.fetchone()[0] == 1

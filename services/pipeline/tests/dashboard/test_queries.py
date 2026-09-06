@@ -7,7 +7,6 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-
 from dashboard.queries import (
     get_cities_comparison,
     get_city_history,
