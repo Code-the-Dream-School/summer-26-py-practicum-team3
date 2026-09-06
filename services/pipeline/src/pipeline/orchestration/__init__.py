@@ -4,16 +4,21 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
+import psycopg
 
 from pipeline.common.config import settings
+from pipeline.common.db import get_connection
 from pipeline.common.logging import get_logger
 from pipeline.extract.cities import City, read_cities
-from pipeline.extract.geocoding import geocode_city
+from pipeline.extract.geocoding import GEOCODING_URL, geocode_city
 from pipeline.extract.openweather_air_pollution import (
+    OPENWEATHER_AIR_POLLUTION_URL,
     RawAirPollutionRecord,
     fetch_air_pollution_history,
     to_transform_input,
 )
+from pipeline.load.cities import upsert_cities
+from pipeline.load.raw import save_raw_air_pollution_response, save_raw_geocoding_response
 from pipeline.load.storage import DEFAULT_TABLE_NAME, PublishResult, publish_outputs
 from pipeline.orchestration_runner import (
     PipelineRunResult,
@@ -47,9 +52,18 @@ def build_runtime_window(history_hours: int) -> tuple[datetime, datetime]:
 
 
 def run_extract_stage(
-    raw_dir: Path, cities: list[City], start: datetime, end: datetime, run_id: str, pipeline_run_id: int
+    raw_dir: Path,
+    cities: list[City],
+    start: datetime,
+    end: datetime,
+    run_id: str,
+    pipeline_run_id: int,
+    conn: psycopg.Connection | None = None,
 ) -> tuple[list[RawAirPollutionRecord], int]:
     raw_records: list[RawAirPollutionRecord] = []
+
+    if conn is not None:
+        upsert_cities(conn, cities)
 
     for city in cities:
         coords = geocode_city(
@@ -58,7 +72,7 @@ def run_extract_stage(
             country_code=city.country_code,
             state=city.state,
         )
-        
+
         if coords is None:
             log.warning(
                 "Geocoding failed or returned no coordinates, skipping city",
@@ -72,6 +86,25 @@ def run_extract_stage(
                 },
             )
             continue
+
+        if conn is not None and coords.payload is not None:
+            save_raw_geocoding_response(
+                conn,
+                {
+                    "pipeline_run_id": pipeline_run_id,
+                    "city_id": city.city_id,
+                    "city_name": city.city_name,
+                    "country_code": city.country_code,
+                    "state_code": city.state_code,
+                    "lat": coords.lat,
+                    "lon": coords.lon,
+                    "coordinate_source": coords.source,
+                    "endpoint": GEOCODING_URL,
+                    "retrieved_at": datetime.now(timezone.utc),
+                    "http_status": coords.http_status,
+                    "payload": coords.payload,
+                },
+            )
 
         raw_record = fetch_air_pollution_history(
             raw_dir=raw_dir,
@@ -87,6 +120,27 @@ def run_extract_stage(
             pipeline_run_id=pipeline_run_id,
         )
         raw_records.append(raw_record)
+
+        if conn is not None and raw_record.raw_response is not None:
+            save_raw_air_pollution_response(
+                conn,
+                {
+                    "pipeline_run_id": pipeline_run_id,
+                    "city_id": raw_record.city_id,
+                    "city_name": raw_record.city,
+                    "country_code": raw_record.country_code,
+                    "state_code": raw_record.state_code,
+                    "coordinate_source": coords.source,
+                    "lat": raw_record.lat,
+                    "lon": raw_record.lon,
+                    "start": raw_record.start,
+                    "end": raw_record.end,
+                    "endpoint": OPENWEATHER_AIR_POLLUTION_URL,
+                    "retrieved_at": raw_record.retrieved_at,
+                    "http_status": 200,
+                    "payload": raw_record.raw_response,
+                },
+            )
 
     return raw_records, len(cities)
 
@@ -106,12 +160,14 @@ def run_load_stage(
     gold_dir: Path,
     run_id: str,
     table_name: str = DEFAULT_TABLE_NAME,
+    conn: psycopg.Connection | None = None,
 ) -> PublishResult:
     return publish_outputs(
         gold_df=gold_df,
         gold_dir=gold_dir,
         run_id=run_id,
         table_name=table_name,
+        conn=conn,
     )
 
 
@@ -143,6 +199,15 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
 
     progress = PipelineStageProgress()
 
+    conn: psycopg.Connection | None = None
+    if settings.database_url.get_secret_value().strip():
+        conn = get_connection()
+    else:
+        log.info(
+            "DATABASE_URL not configured; Postgres writes will be skipped for this run",
+            extra={"run_id": run_id, "pipeline_run_id": pipeline_run_id},
+        )
+
     try:
         cities_path = Path(settings.cities_file) if settings.cities_source == "file" else None
         cities = read_cities(cities_path)
@@ -157,6 +222,7 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
             pipeline_run_id=pipeline_run_id,
             source=source,
             history_hours=resolved_history_hours,
+            conn=conn,
             extract=run_extract_stage,
             transform=run_transform_stage,
             load=run_load_stage,
@@ -212,3 +278,6 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
             ),
         )
         raise
+    finally:
+        if conn is not None:
+            conn.close()
