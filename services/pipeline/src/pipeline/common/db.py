@@ -7,26 +7,24 @@ points, so connections here are opened with normal (manual-commit) semantics.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import psycopg
 
 from pipeline.common.config import settings
 
-_SQLALCHEMY_PSYCOPG_SCHEME = "postgresql+psycopg://"
-_PSYCOPG_SCHEME = "postgresql://"
+_DSN_SCHEME_PATTERN = re.compile(r"^postgres(?:ql)?\+\w+://")
 
 
 def normalize_dsn(url: str) -> str:
-    """Strip the SQLAlchemy-style `+psycopg` driver suffix psycopg3 doesn't understand.
+    """Strip any SQLAlchemy-style `+driver` suffix psycopg3 doesn't understand.
 
-    `.env`'s DATABASE_URL is written as `postgresql+psycopg://...` (what Alembic's
-    SQLAlchemy URL needs), but `psycopg.connect()` only recognizes `postgresql://`
-    / `postgres://`.
+    Handles `postgresql+psycopg://` (what `.env`/Alembic actually use), and more
+    generally `postgres+psycopg://` (no "ql"), `+psycopg2`, `+asyncpg`, etc. —
+    psycopg3's `connect()` only recognizes a plain `postgresql://` / `postgres://`.
     """
-    if url.startswith(_SQLALCHEMY_PSYCOPG_SCHEME):
-        return _PSYCOPG_SCHEME + url[len(_SQLALCHEMY_PSYCOPG_SCHEME):]
-    return url
+    return _DSN_SCHEME_PATTERN.sub("postgresql://", url, count=1)
 
 
 def get_connection() -> psycopg.Connection[Any]:

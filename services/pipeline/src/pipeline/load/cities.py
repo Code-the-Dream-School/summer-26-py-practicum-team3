@@ -45,19 +45,20 @@ def upsert_cities(conn: psycopg.Connection, cities: Sequence[City]) -> int:
     if not cities:
         return 0
 
+    params = [
+        {
+            "city_id": city.city_id,
+            "city_name": city.city_name,
+            "country_code": city.country_code,
+            "state_code": city.state_code,
+            "timezone": city.timezone,
+            "active": city.active,
+        }
+        for city in cities
+    ]
+
     with conn.cursor() as cur:
-        for city in cities:
-            cur.execute(
-                CITY_UPSERT_SQL,
-                {
-                    "city_id": city.city_id,
-                    "city_name": city.city_name,
-                    "country_code": city.country_code,
-                    "state_code": city.state_code,
-                    "timezone": city.timezone,
-                    "active": city.active,
-                },
-            )
+        cur.executemany(CITY_UPSERT_SQL, params)
 
     conn.commit()
     return len(cities)

@@ -19,6 +19,15 @@ def test_normalize_dsn_leaves_plain_postgresql_scheme_unchanged() -> None:
     assert normalize_dsn(url) == url
 
 
+def test_normalize_dsn_strips_any_driver_suffix() -> None:
+    assert normalize_dsn("postgres+psycopg://user:pass@localhost:5432/db") == (
+        "postgresql://user:pass@localhost:5432/db"
+    )
+    assert normalize_dsn("postgresql+psycopg2://user:pass@localhost:5432/db") == (
+        "postgresql://user:pass@localhost:5432/db"
+    )
+
+
 def test_get_connection_raises_when_database_url_unset(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(config.settings, "database_url", SecretStr(""))
 
