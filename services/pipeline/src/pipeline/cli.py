@@ -1,9 +1,21 @@
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 import rich_click as click
 
+from pipeline.common.config import settings
+from pipeline.common.db import get_connection, normalize_dsn
 from pipeline.orchestration import run_pipeline_job
 from pipeline.run_tracking import list_pipeline_runs
+
+DB_TABLES = (
+    "cities",
+    "pipeline_runs",
+    "raw_geocoding_responses",
+    "raw_air_pollution_responses",
+    "air_pollution_gold",
+)
 
 
 @click.group()
@@ -41,9 +53,8 @@ def runs(limit: int) -> None:
     try:
         records = list_pipeline_runs(limit=limit)
 
-		# TODO: Once PostgreSQL-backed run tracking is wired up, remove the in-memory persistence note below because run history will persist between CLI invocations.
         if not records:
-            click.echo("No pipeline runs found.\n\nNote: run history currently uses the in-memory AIR-22 repository and does not persist between CLI invocations.")
+            click.echo("No pipeline runs found.")
             return
 
         click.secho("Pipeline Runs", fg="cyan", bold=True)
@@ -86,5 +97,28 @@ def runs(limit: int) -> None:
 @main.command()
 def db() -> None:
     """Display basic database information."""
-    # TODO: Use the shared database connection layer once it is available.
-    click.echo("Database information is not available yet.")
+    db_url = settings.database_url.get_secret_value()
+    if not db_url:
+        click.echo("DATABASE_URL is not configured; pipeline runs write Parquet only.")
+        return
+
+    try:
+        conn = get_connection()
+    except Exception as exc:
+        click.secho(f"✗ Could not connect: {exc}", fg="red", err=True)
+        raise click.ClickException(str(exc)) from exc
+
+    try:
+        parsed = urlparse(normalize_dsn(db_url))
+        click.secho("Connected to PostgreSQL", fg="green", bold=True)
+        click.echo(f"Host:     {parsed.hostname}")
+        click.echo(f"Database: {parsed.path.lstrip('/')}")
+        click.echo()
+
+        with conn.cursor() as cur:
+            for table in DB_TABLES:
+                cur.execute(f"SELECT COUNT(*) FROM {table};")
+                (count,) = cur.fetchone()
+                click.echo(f"  {table}: {count}")
+    finally:
+        conn.close()
