@@ -18,7 +18,11 @@ from pipeline.extract.openweather_air_pollution import (
     to_transform_input,
 )
 from pipeline.load.cities import upsert_cities
-from pipeline.load.raw import save_raw_air_pollution_response, save_raw_geocoding_response
+from pipeline.load.raw import (
+    load_raw_air_pollution_responses,
+    save_raw_air_pollution_response,
+    save_raw_geocoding_response,
+)
 from pipeline.load.storage import DEFAULT_TABLE_NAME, PublishResult, publish_outputs
 from pipeline.orchestration_runner import (
     PipelineRunResult,
@@ -28,11 +32,12 @@ from pipeline.orchestration_runner import (
 from pipeline.run_tracking import (
     PipelineRunStatusUpdate,
     create_pipeline_run,
+    get_pipeline_run,
     update_pipeline_run_status,
 )
 from pipeline.transform.transform import transform_raw_response
 
-__all__ = ["PipelineRunResult", "run_pipeline_job"]
+__all__ = ["PipelineRunResult", "run_pipeline_job", "run_replay_job"]
 
 log = get_logger(__name__)
 
@@ -175,7 +180,7 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
     resolved_history_hours = int(settings.history_hours if history_hours is None else history_hours)
     raw_dir, gold_dir = ensure_output_directories()
     start, end = build_runtime_window(resolved_history_hours)
-    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
 
     progress = PipelineStageProgress()
     conn: psycopg.Connection | None = None
@@ -268,8 +273,6 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
             },
         )
         if pipeline_run_id is not None:
-            # Only update a row that was actually created — create_pipeline_run itself may be
-            # what failed (e.g. Postgres briefly unreachable), in which case there's no row yet.
             update_pipeline_run_status(
                 run_id,
                 PipelineRunStatusUpdate(
@@ -277,6 +280,128 @@ def run_pipeline_job(source: str = "openweather", history_hours: int | None = No
                     city_count=progress.city_count,
                     raw_response_count=progress.raw_response_count,
                     gold_row_count=progress.gold_row_count,
+                    error_message=str(exc),
+                    finished_at=datetime.now(timezone.utc),
+                ),
+            )
+        raise
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def run_replay_job(source_run_id: str) -> PipelineRunResult:
+    """Re-run transform + load from previously persisted raw air-pollution responses.
+
+    Makes no API calls at all — reads `source_run_id`'s raw responses back from Postgres and
+    feeds them through the same transform_raw_response()/publish_outputs() used by a normal run.
+    Requires DATABASE_URL to be configured; there is nothing to replay from otherwise.
+    """
+    if not settings.database_url.get_secret_value().strip():
+        raise ValueError("DATABASE_URL must be configured to replay a run from Postgres.")
+
+    _, gold_dir = ensure_output_directories()
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+
+    conn: psycopg.Connection | None = None
+    pipeline_run_id: int | None = None
+
+    try:
+        conn = get_connection()
+
+        source_run = get_pipeline_run(source_run_id)
+        if source_run is None:
+            raise ValueError(f"No pipeline run found with run_id={source_run_id!r}")
+
+        pipeline_run_id = create_pipeline_run(
+            run_id=run_id,
+            source="replay",
+            history_hours=source_run.history_hours,
+            window_start_utc=source_run.window_start_utc,
+            window_end_utc=source_run.window_end_utc,
+        )
+
+        log.info(
+            "Replay starting",
+            extra={
+                "run_id": run_id,
+                "pipeline_run_id": pipeline_run_id,
+                "source_run_id": source_run_id,
+                "source_pipeline_run_id": source_run.pipeline_run_id,
+            },
+        )
+
+        envelopes = load_raw_air_pollution_responses(
+            conn,
+            source_pipeline_run_id=source_run.pipeline_run_id,
+            run_id=run_id,
+            pipeline_run_id=pipeline_run_id,
+        )
+
+        transformed_records: list[dict] = []
+        for envelope in envelopes:
+            transformed_records.extend(transform_raw_response(envelope))
+
+        gold_df = pd.DataFrame(transformed_records)
+        if not gold_df.empty:
+            gold_df["pipeline_run_id"] = pipeline_run_id
+
+        publish_result = publish_outputs(
+            gold_df=gold_df,
+            gold_dir=gold_dir,
+            run_id=run_id,
+            conn=conn,
+        )
+
+        update_pipeline_run_status(
+            run_id,
+            PipelineRunStatusUpdate(
+                status="succeeded",
+                city_count=source_run.city_count,
+                raw_response_count=len(envelopes),
+                gold_row_count=len(gold_df),
+                finished_at=datetime.now(timezone.utc),
+            ),
+        )
+
+        log.info(
+            "Replay succeeded",
+            extra={
+                "run_id": run_id,
+                "pipeline_run_id": pipeline_run_id,
+                "source_run_id": source_run_id,
+                "raw_response_count": len(envelopes),
+                "gold_row_count": len(gold_df),
+            },
+        )
+
+        return PipelineRunResult(
+            pipeline_run_id=pipeline_run_id,
+            run_id=run_id,
+            source="replay",
+            history_hours=source_run.history_hours,
+            raw_records=[],
+            gold_path=publish_result.gold_path,
+            azure_blob_path=publish_result.azure_blob_path,
+            postgres_table=publish_result.table_name,
+            city_count=source_run.city_count,
+            raw_response_count=len(envelopes),
+            gold_row_count=len(gold_df),
+        )
+    except Exception as exc:
+        log.exception(
+            "Replay failed",
+            extra={
+                "run_id": run_id,
+                "pipeline_run_id": pipeline_run_id,
+                "source_run_id": source_run_id,
+            },
+        )
+        if pipeline_run_id is not None:
+            update_pipeline_run_status(
+                run_id,
+                PipelineRunStatusUpdate(
+                    status="failed",
                     error_message=str(exc),
                     finished_at=datetime.now(timezone.utc),
                 ),

@@ -452,3 +452,8 @@ def list_pipeline_runs(limit: int = 10) -> list[PipelineRunRecord]:
     CLI invocations; falls back to the in-process repository otherwise.
     """
     return _resolve_repository().list(limit=limit)
+
+
+def get_pipeline_run(run_id: str) -> PipelineRunRecord | None:
+    """Look up a single pipeline run by its run_id, or None if it doesn't exist."""
+    return _resolve_repository().get(run_id)

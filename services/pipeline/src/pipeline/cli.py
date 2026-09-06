@@ -6,7 +6,7 @@ import rich_click as click
 
 from pipeline.common.config import settings
 from pipeline.common.db import get_connection, normalize_dsn
-from pipeline.orchestration import run_pipeline_job
+from pipeline.orchestration import run_pipeline_job, run_replay_job
 from pipeline.run_tracking import list_pipeline_runs
 
 DB_TABLES = (
@@ -93,6 +93,30 @@ def runs(limit: int) -> None:
         raise click.ClickException(
             f"Unable to retrieve pipeline runs: {exc}"
         ) from exc
+
+@main.command()
+@click.option(
+    "--run-id",
+    required=True,
+    help="run_id of a previous pipeline run to replay transform/load for, without calling the API again.",
+)
+def replay(run_id: str) -> None:
+    """Replay transform + load from a previous run's raw responses already in Postgres."""
+    try:
+        result = run_replay_job(source_run_id=run_id)
+
+        click.secho("✓ Replay completed successfully.", fg="green")
+        click.echo(f"New run ID: {result.run_id}")
+        click.echo(f"Gold rows:  {result.gold_row_count}")
+
+    except Exception as exc:
+        click.secho(
+            f"✗ Replay failed: {exc}",
+            fg="red",
+            err=True,
+        )
+        raise click.ClickException(str(exc)) from exc
+
 
 @main.command()
 def db() -> None:
