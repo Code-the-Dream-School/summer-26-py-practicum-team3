@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import requests
 from pydantic import BaseModel, ValidationError
@@ -21,6 +21,8 @@ class Coordinates(BaseModel):
     lat: float
     lon: float
     source: Literal["geocoded", "fallback"]
+    http_status: int | None = None
+    payload: Any | None = None
 
 
 class GeocodingResult(BaseModel):
@@ -112,6 +114,9 @@ def geocode_city(
 
         return None
 
+    http_status: int | None = None
+    payload: Any | None = None
+
     try:
         response = requests.get(
             GEOCODING_URL,
@@ -131,6 +136,12 @@ def geocode_city(
             response=response.text,
         )
 
+        http_status = response.status_code
+        try:
+            payload = response.json()
+        except Exception:  # noqa: BLE001
+            payload = {"raw_text": response.text}
+
         if response.status_code != 200:
             log.warning(
                 "Geocoding API request failed for %s, %s: HTTP %s",
@@ -139,7 +150,7 @@ def geocode_city(
                 response.status_code,
             )
         else:
-            results = response.json()
+            results = payload
 
             if results:
                 result = GeocodingResult.model_validate(results[0])
@@ -148,6 +159,8 @@ def geocode_city(
                     lat=result.lat,
                     lon=result.lon,
                     source="geocoded",
+                    http_status=http_status,
+                    payload=payload,
                 )
 
             log.warning(
@@ -186,6 +199,8 @@ def geocode_city(
             lat=fallback[0],
             lon=fallback[1],
             source="fallback",
+            http_status=http_status,
+            payload=payload,
         )
 
     log.warning(
