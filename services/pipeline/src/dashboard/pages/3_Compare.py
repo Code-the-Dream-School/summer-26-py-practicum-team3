@@ -46,7 +46,13 @@ def format_relative_time(dt: datetime) -> str:
 
 def _city_label(row: dict) -> str:
     """Build a display label consistent with 1_Summary.py's location formatting."""
-    state = f", {row['state_code']}" if row.get("state_code") else ""
+    state_code = row.get("state_code")
+    is_missing = (
+        state_code is None
+        or pd.isna(state_code)
+        or str(state_code).strip().lower() == "null"
+    )
+    state = f", {state_code}" if not is_missing else ""
     return f"{row['city_name']} ({row['country_code']}{state})"
 
 
