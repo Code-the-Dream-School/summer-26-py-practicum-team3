@@ -15,9 +15,8 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 import pytest
-from pydantic import SecretStr
-
 from pipeline.extract import geocoding
+from pydantic import SecretStr
 
 
 @pytest.fixture(autouse=True)

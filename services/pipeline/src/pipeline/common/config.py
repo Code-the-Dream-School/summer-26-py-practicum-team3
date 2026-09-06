@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     openweather_api_key: SecretStr = SecretStr("")
+    database_url: SecretStr = SecretStr("")
 
     raw_dir: str = "data/raw"
     gold_dir: str = "data/gold"
@@ -13,6 +14,8 @@ class Settings(BaseSettings):
 
     cities_source: str = "file"
     cities_file: str = "config/cities.json"
+
+    log_level: str = "INFO"
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -546,3 +546,36 @@ CREATE INDEX idx_air_pollution_gold_observed_at
 CREATE INDEX idx_air_pollution_gold_pipeline_run
     ON air_pollution_gold (pipeline_run_id);
 ```
+
+## Persistence / Transaction Boundary
+
+A pipeline run writes to Postgres as a sequence of independent commits, not as one
+all-or-nothing transaction. This intentionally matches `run_extract_stage`'s existing behavior of
+skipping a city that fails geocoding and continuing with the rest — a single whole-run transaction
+would roll back cities that already succeeded whenever one city fails, which would contradict that
+design.
+
+Write order and commit boundaries for one run:
+
+1. **`pipeline_runs` row created** (`status='running'`) — committed immediately, before extract
+   starts, so a run is traceable even if it crashes right after starting.
+2. **All configured `cities` upserted, once, as a single batch** — committed together, before the
+   per-city extract loop begins. This satisfies the FK every subsequent raw/gold write depends on
+   (`raw_geocoding_responses`, `raw_air_pollution_responses`, and `air_pollution_gold` all
+   reference `cities.city_id`) up front, rather than per city.
+3. **Per city: `raw_geocoding_responses` insert, then `raw_air_pollution_responses` insert** —
+   each commits as soon as it's written. A city that fails partway through (e.g. geocoding
+   succeeds but the air-pollution fetch fails) leaves whatever it already wrote intact; it does not
+   roll back other cities.
+4. **Gold rows** — one batch commit for the whole run's transformed records.
+5. **`pipeline_runs` status update** (`succeeded` / `failed`, plus city/raw/gold counters) — the
+   last write, committed after load succeeds or from the failure handler. This row is the single
+   source of truth for whether the run as a whole succeeded, independent of how far individual
+   per-city raw writes got.
+
+Postgres is treated as the primary, must-succeed destination: a write failure here propagates and
+marks the run `failed`. The secondary Parquet export stays best-effort — a Parquet write failure
+is caught, logged, and recorded on the result (`parquet_error`) without failing the run.
+
+When `DATABASE_URL` isn't configured, all of the above is skipped entirely and the run produces
+Parquet output only, so pipeline runs remain usable without a database configured.

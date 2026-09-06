@@ -6,7 +6,6 @@ from unittest.mock import Mock
 
 import pytest
 import requests
-
 from pipeline.extract.openweather_air_pollution import (
     _validate_location,
     _validate_window,

@@ -5,13 +5,16 @@ Provides primary export to PostgreSQL and secondary archival export to Parquet.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import os
-from pathlib import Path
 import re
+from dataclasses import dataclass
+from pathlib import Path
+
 import pandas as pd
+import psycopg
 
 from pipeline.common.logging import get_logger
+from pipeline.load.gold import save_transformed_records
 
 log = get_logger(__name__)
 
@@ -36,12 +39,16 @@ def publish_outputs(
     gold_dir: Path | None,
     run_id: str,
     table_name: str = DEFAULT_TABLE_NAME,
+    conn: psycopg.Connection | None = None,
 ) -> PublishResult:
     """Publishes transformed Gold records to secondary Parquet storage and PostgreSQL.
 
     Execution Lifecycle & Triggers:
         This function is executed during the Load stage of every pipeline job.
-        - Primary Export: Always attempted to PostgreSQL (`table_name`).
+        - Primary Export: Attempted to PostgreSQL (`table_name`) whenever `conn` is provided.
+          If `conn` is None (DATABASE_URL not configured), Postgres export is cleanly skipped.
+          Unlike the Parquet export below, a Postgres write failure is NOT caught here — it
+          propagates so the run is correctly marked failed, since Postgres is the primary target.
         - Secondary Parquet Export: Attempted whenever `gold_dir` is provided (not None).
           If `gold_dir` is None, secondary file export is cleanly skipped (`gold_path=None`).
         - Empty Dataset: If `gold_df` is empty, Parquet file generation is skipped (`gold_path=None`)
@@ -118,7 +125,12 @@ def publish_outputs(
             parquet_path = None
 
     # --- Primary Export: PostgreSQL Table ---
-    # TODO (AIR-21): Wire actual Postgres upsert once DB connection layer is merged.
+    if conn is not None:
+        save_transformed_records(conn, gold_df.to_dict("records"))
+        log.info(
+            "Primary PostgreSQL export completed",
+            extra={"run_id": run_id, "table_name": table_name, "gold_row_count": row_count},
+        )
 
     return PublishResult(
         gold_path=parquet_path,

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
+
 import psycopg
 from psycopg.types.json import Jsonb
-
 
 RAW_GEOCODING_SQL = """
     INSERT INTO raw_geocoding_responses (
@@ -70,6 +71,13 @@ RAW_AIR_POLLUTION_SQL = """
         %(payload)s
     )
     RETURNING raw_air_pollution_response_id;
+"""
+
+LOAD_RAW_AIR_POLLUTION_SQL = """
+    SELECT city_id, city_name, country_code, state_code, lat, lon, retrieved_at, payload
+    FROM raw_air_pollution_responses
+    WHERE pipeline_run_id = %s
+    ORDER BY raw_air_pollution_response_id;
 """
 
 RAW_GEOCODING_REQUIRED = (
@@ -159,3 +167,41 @@ def save_raw_air_pollution_response(
 
     conn.commit()
     return row[0]
+
+
+def load_raw_air_pollution_responses(
+    conn: psycopg.Connection,
+    source_pipeline_run_id: int,
+    run_id: str,
+    pipeline_run_id: int,
+) -> list[dict[str, Any]]:
+    """Reconstruct transform-input envelopes from previously persisted raw responses.
+
+    Used to replay transform without calling the API again. `run_id`/`pipeline_run_id` are the
+    *new* (replay) run's values, not the original run's — each returned envelope is tagged with
+    them so the resulting gold rows are correctly attributed to this replay.
+    """
+    with conn.cursor() as cur:
+        cur.execute(LOAD_RAW_AIR_POLLUTION_SQL, (source_pipeline_run_id,))
+        rows = cur.fetchall()
+
+    envelopes: list[dict[str, Any]] = []
+    for city_id, city_name, country_code, state_code, lat, lon, retrieved_at, payload in rows:
+        status = "empty" if not payload.get("list") else "ok"
+        envelopes.append(
+            {
+                "status": status,
+                "payload": payload,
+                "city_id": city_id,
+                "city_name": city_name,
+                "country_code": country_code,
+                "state_code": state_code,
+                "lat": lat,
+                "lon": lon,
+                "retrieved_at": retrieved_at,
+                "run_id": run_id,
+                "pipeline_run_id": pipeline_run_id,
+            }
+        )
+
+    return envelopes
