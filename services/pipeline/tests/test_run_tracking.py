@@ -3,7 +3,9 @@
 from datetime import datetime, timezone
 import time
 import pytest
+from pydantic import SecretStr
 
+from pipeline.common import config
 from pipeline.run_tracking import (
     InMemoryPipelineRunRepository,
     PipelineRunRecord,
@@ -15,8 +17,14 @@ from pipeline.run_tracking import (
 
 
 @pytest.fixture(autouse=True)
-def clean_default_repository():
-    """Ensure module-level store is clean before and after each test."""
+def clean_default_repository(monkeypatch: pytest.MonkeyPatch):
+    """Ensure module-level store is clean before and after each test.
+
+    Also forces DATABASE_URL empty for the duration of this suite: these tests exercise
+    InMemoryPipelineRunRepository in isolation and must not silently switch to a real Postgres
+    connection just because a developer's local .env happens to configure one.
+    """
+    monkeypatch.setattr(config.settings, "database_url", SecretStr(""))
     _default_repository.clear()
     yield
     _default_repository.clear()
