@@ -386,6 +386,31 @@ def test_geocode_city_uses_fallback_when_api_key_is_not_configured(
     assert coordinates.source == "fallback"
 
 
+def test_geocode_city_fallback_matches_even_when_state_is_provided(
+    monkeypatch,
+    tmp_path,
+):
+    """FALLBACK_COORDINATES is keyed with state=None; a config that provides a real state_code
+    (e.g. "NV") must still match via the state-agnostic retry in _get_fallback_coordinates."""
+    monkeypatch.setattr(
+        geocoding.settings,
+        "openweather_api_key",
+        SecretStr(""),
+    )
+
+    coordinates = geocoding.geocode_city(
+        city="Las Vegas",
+        country_code="US",
+        state="NV",
+        raw_dir=tmp_path,
+    )
+
+    assert coordinates is not None
+    assert coordinates.lat == 36.1699
+    assert coordinates.lon == -115.1398
+    assert coordinates.source == "fallback"
+
+
 def test_geocoding_logger_uses_shared_context_formatter():
     """
     Verifies that the module-level logger goes through the shared get_logger()

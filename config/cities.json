@@ -1,22 +1,25 @@
 [
   {
-    "city_id": "us-las-vegas",
+    "city_id": "us-las-vegas-nv",
     "city_name": "Las Vegas",
     "country_code": "US",
+    "state_code": "NV",
     "timezone": "America/Los_Angeles",
     "active": true
   },
   {
-    "city_id": "us-new-york",
+    "city_id": "us-new-york-ny",
     "city_name": "New York",
     "country_code": "US",
+    "state_code": "NY",
     "timezone": "America/New_York",
     "active": true
   },
   {
-    "city_id": "us-los-angeles",
+    "city_id": "us-los-angeles-ca",
     "city_name": "Los Angeles",
     "country_code": "US",
+    "state_code": "CA",
     "timezone": "America/Los_Angeles",
     "active": true
   },

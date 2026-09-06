@@ -59,6 +59,10 @@ _RAW_FALLBACK_COORDINATES = [
 ]
 
 
+# Matched by city name alone if an exact (city, state, country) match isn't found — see
+# _get_fallback_coordinates. This does not disambiguate same-named cities in different states
+# (e.g. a real "Las Vegas, NM" would still resolve to these Nevada coordinates); acceptable here
+# since this table exists purely as a dev/demo safety net, not a production geocoding source.
 FALLBACK_COORDINATES: dict[
     tuple[str, str | None, str],
     tuple[float, float],
@@ -236,7 +240,13 @@ def _get_fallback_coordinates(
     state_key = _normalize_state(state)
     country_key = _normalize_country(country_code)
 
-    return FALLBACK_COORDINATES.get((city_key, state_key, country_key))
+    coordinates = FALLBACK_COORDINATES.get((city_key, state_key, country_key))
+    if coordinates is not None:
+        return coordinates
+
+    # Retry ignoring state: entries are keyed by state=None, so a config that provides a real
+    # state_code (e.g. "NV") wouldn't otherwise match.
+    return FALLBACK_COORDINATES.get((city_key, None, country_key))
 
 
 def _save_raw_response(
