@@ -8,6 +8,20 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: city_air_tracker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: services/pipeline
@@ -18,7 +32,12 @@ jobs:
           python-version: '3.12'
       - run: pip install -r requirements.txt
         working-directory: .
+
+      - run: alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/city_air_tracker
+
       - run: python src/pipeline/scheduler.py
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/city_air_tracker
