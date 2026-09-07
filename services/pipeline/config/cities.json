@@ -2,7 +2,7 @@
   {
     "city_name": "Las Vegas",
     "country_code": "US",
-    "city_id": "us-las-vegas",
+    "city_id": "us-las-vegas-nv",
     "timezone": "America/Los_Angeles",
     "active": true,
     "state_code": "NV"
@@ -10,21 +10,21 @@
   {
     "city_name": "Berlin",
     "country_code": "DE",
-    "city_id": "berlin-de",
+    "city_id": "de-berlin",
     "timezone": "Europe/Berlin",
     "active": true
   },
   {
     "city_name": "London",
     "country_code": "GB",
-    "city_id": "london-gb",
+    "city_id": "gb-london",
     "timezone": "Europe/London",
     "active": true
   },
   {
     "city_name": "New York",
     "country_code": "US",
-    "city_id": "us-new-york",
+    "city_id": "us-new-york-ny",
     "timezone": "America/New_York",
     "active": true,
     "state_code": "NY"
@@ -32,7 +32,7 @@
   {
     "city_name": "Los Angeles",
     "country_code": "US",
-    "city_id": "us-los-angeles",
+    "city_id": "us-los-angeles-ca",
     "timezone": "America/Los_Angeles",
     "active": true,
     "state_code": "CA"
@@ -40,7 +40,7 @@
   {
     "city_name": "San Francisco",
     "country_code": "US",
-    "city_id": "us-san-francisco",
+    "city_id": "us-san-francisco-ca",
     "timezone": "America/Los_Angeles",
     "active": true,
     "state_code": "CA"
@@ -48,7 +48,7 @@
   {
     "city_name": "San Diego",
     "country_code": "US",
-    "city_id": "us-san-diego",
+    "city_id": "us-san-diego-ca",
     "timezone": "America/Los_Angeles",
     "active": true,
     "state_code": "CA"
@@ -56,7 +56,7 @@
   {
     "city_name": "San Antonio",
     "country_code": "US",
-    "city_id": "us-san-antonio",
+    "city_id": "us-san-antonio-tx",
     "timezone": "America/Chicago",
     "active": true,
     "state_code": "TX"
@@ -64,7 +64,7 @@
   {
     "city_name": "San Jose",
     "country_code": "US",
-    "city_id": "us-san-jose",
+    "city_id": "us-san-jose-ca",
     "timezone": "America/Los_Angeles",
     "active": true,
     "state_code": "CA"
@@ -72,7 +72,7 @@
   {
     "city_name": "Salt Lake City",
     "country_code": "US",
-    "city_id": "us-salt-lake-city",
+    "city_id": "us-salt-lake-city-ut",
     "timezone": "America/Denver",
     "active": true,
     "state_code": "UT"
@@ -80,7 +80,7 @@
   {
     "city_name": "Coeur d'Alene",
     "country_code": "US",
-    "city_id": "us-coeur-d-alene",
+    "city_id": "us-coeur-d-alene-id",
     "timezone": "America/Los_Angeles",
     "active": true,
     "state_code": "ID"
@@ -88,7 +88,7 @@
   {
     "city_name": "Lake O'the Cherokees",
     "country_code": "US",
-    "city_id": "us-lake-o-the-cherokees",
+    "city_id": "us-lake-o-the-cherokees-ok",
     "timezone": "America/Chicago",
     "active": true,
     "state_code": "OK"
@@ -96,7 +96,7 @@
   {
     "city_name": "Winston-Salem",
     "country_code": "US",
-    "city_id": "us-winston-salem",
+    "city_id": "us-winston-salem-nc",
     "timezone": "America/New_York",
     "active": true,
     "state_code": "NC"
@@ -104,7 +104,7 @@
   {
     "city_name": "Wilkes-Barre",
     "country_code": "US",
-    "city_id": "us-wilkes-barre",
+    "city_id": "us-wilkes-barre-pa",
     "timezone": "America/New_York",
     "active": true,
     "state_code": "PA"
@@ -112,7 +112,7 @@
   {
     "city_name": "Grand Rapids",
     "country_code": "US",
-    "city_id": "us-grand-rapids",
+    "city_id": "us-grand-rapids-mi",
     "timezone": "America/Detroit",
     "active": true,
     "state_code": "MI"
@@ -120,7 +120,7 @@
   {
     "city_name": "Fort Worth",
     "country_code": "US",
-    "city_id": "us-fort-worth",
+    "city_id": "us-fort-worth-tx",
     "timezone": "America/Chicago",
     "active": true,
     "state_code": "TX"
@@ -128,7 +128,7 @@
   {
     "city_name": "Virginia Beach",
     "country_code": "US",
-    "city_id": "us-virginia-beach",
+    "city_id": "us-virginia-beach-va",
     "timezone": "America/New_York",
     "active": true,
     "state_code": "VA"
