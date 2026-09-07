@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Optional
-
+from typing import Any
 
 # --- Rule: timestamp normalization ---
 
-def unix_to_utc_datetime(dt_unix: Any) -> Optional[datetime]:
+def unix_to_utc_datetime(dt_unix: Any) -> datetime | None:
     """
     Convert an OpenWeather `dt` (Unix seconds) to a UTC datetime.
     None if missing/unparsable — observed_at is required, so caller drops the record.
@@ -21,7 +20,7 @@ def unix_to_utc_datetime(dt_unix: Any) -> Optional[datetime]:
 
 # --- Rule: coordinate typing + range validation ---
 
-def normalize_coordinate(value: Any, *, is_latitude: bool) -> Optional[float]:
+def normalize_coordinate(value: Any, *, is_latitude: bool) -> float | None:
     """
     Cast a coordinate to float and validate its range
     Latitude: -90..90, Longitude: -180..180.
@@ -51,7 +50,7 @@ _AQI_LABELS = {
 }
 
 
-def normalize_aqi(value: Any) -> Optional[int]:
+def normalize_aqi(value: Any) -> int | None:
     """Cast OpenWeather's 1-5 AQI index to int; None if missing/out of range."""
     if value is None:
         return None
@@ -62,7 +61,7 @@ def normalize_aqi(value: Any) -> Optional[int]:
     return aqi if aqi in _AQI_LABELS else None
 
 
-def aqi_label(aqi: Optional[int]) -> Optional[str]:
+def aqi_label(aqi: int | None) -> str | None:
     """
     Map AQI (1-5) to its Human-readable AQI category (Good..Very Poor) display category;
     None if aqi is None.
@@ -77,7 +76,7 @@ def aqi_label(aqi: Optional[int]) -> Optional[str]:
 COMPONENT_FIELDS = ("co", "no", "no2", "o3", "so2", "pm2_5", "pm10", "nh3")
 
 
-def normalize_component(value: Any, *, decimals: int = 2) -> Optional[float]:
+def normalize_component(value: Any, *, decimals: int = 2) -> float | None:
     """
     Cast a pollutant concentration to float and round it.
     Negative values are physically invalid and treated as missing (None), not dropped.
@@ -93,7 +92,7 @@ def normalize_component(value: Any, *, decimals: int = 2) -> Optional[float]:
     return round(f, decimals)
 
 
-def normalize_components(components: Optional[dict]) -> dict:
+def normalize_components(components: dict | None) -> dict:
     """
     Normalize the full `components` object. Missing keys become None
     rather than raising, since individual pollutants are optional fields.
@@ -107,7 +106,7 @@ def normalize_components(components: Optional[dict]) -> dict:
 
 # --- Rule: text normalization ---
 
-def normalize_text(value: Any) -> Optional[str]:
+def normalize_text(value: Any) -> str | None:
     """Strip surrounding whitespace and collapse empty strings to None."""
     if value is None:
         return None

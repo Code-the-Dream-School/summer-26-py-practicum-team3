@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from pipeline.common.logging import ContextFormatter
 from pipeline.extract.cities import log as cities_log
 from pipeline.extract.cities import read_cities

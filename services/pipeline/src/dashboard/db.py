@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import psycopg
+from pipeline.common.db import normalize_dsn
 from psycopg.rows import dict_row
 
 from dashboard.config import settings
@@ -35,4 +36,4 @@ def get_connection() -> psycopg.Connection[dict[str, Any]]:
     if not db_url:
         raise ValueError("DATABASE_URL must be configured in environment or .env file.")
 
-    return psycopg.connect(db_url, row_factory=dict_row, autocommit=True)
+    return psycopg.connect(normalize_dsn(db_url), row_factory=dict_row, autocommit=True)

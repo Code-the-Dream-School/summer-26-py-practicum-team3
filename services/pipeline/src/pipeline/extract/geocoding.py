@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import requests
 from pydantic import BaseModel, ValidationError
@@ -21,6 +21,8 @@ class Coordinates(BaseModel):
     lat: float
     lon: float
     source: Literal["geocoded", "fallback"]
+    http_status: int | None = None
+    payload: Any | None = None
 
 
 class GeocodingResult(BaseModel):
@@ -57,6 +59,10 @@ _RAW_FALLBACK_COORDINATES = [
 ]
 
 
+# Matched by city name alone if an exact (city, state, country) match isn't found — see
+# _get_fallback_coordinates. This does not disambiguate same-named cities in different states
+# (e.g. a real "Las Vegas, NM" would still resolve to these Nevada coordinates); acceptable here
+# since this table exists purely as a dev/demo safety net, not a production geocoding source.
 FALLBACK_COORDINATES: dict[
     tuple[str, str | None, str],
     tuple[float, float],
@@ -122,6 +128,9 @@ def geocode_city(
 
         return None
 
+    http_status: int | None = None
+    payload: Any | None = None
+
     try:
         response = requests.get(
             GEOCODING_URL,
@@ -141,6 +150,12 @@ def geocode_city(
             response=response.text,
         )
 
+        http_status = response.status_code
+        try:
+            payload = response.json()
+        except Exception:  # noqa: BLE001
+            payload = {"raw_text": response.text}
+
         if response.status_code != 200:
             log.warning(
                 "Geocoding API request failed for %s, %s: HTTP %s",
@@ -155,7 +170,7 @@ def geocode_city(
                 }
             )
         else:
-            results = response.json()
+            results = payload
 
             if results:
                 result = GeocodingResult.model_validate(results[0])
@@ -164,6 +179,8 @@ def geocode_city(
                     lat=result.lat,
                     lon=result.lon,
                     source="geocoded",
+                    http_status=http_status,
+                    payload=payload,
                 )
 
             log.warning(
@@ -220,6 +237,8 @@ def geocode_city(
             lat=fallback[0],
             lon=fallback[1],
             source="fallback",
+            http_status=http_status,
+            payload=payload,
         )
 
     log.warning(
@@ -261,7 +280,13 @@ def _get_fallback_coordinates(
     state_key = _normalize_state(state)
     country_key = _normalize_country(country_code)
 
-    return FALLBACK_COORDINATES.get((city_key, state_key, country_key))
+    coordinates = FALLBACK_COORDINATES.get((city_key, state_key, country_key))
+    if coordinates is not None:
+        return coordinates
+
+    # Retry ignoring state: entries are keyed by state=None, so a config that provides a real
+    # state_code (e.g. "NV") wouldn't otherwise match.
+    return FALLBACK_COORDINATES.get((city_key, None, country_key))
 
 
 def _save_raw_response(

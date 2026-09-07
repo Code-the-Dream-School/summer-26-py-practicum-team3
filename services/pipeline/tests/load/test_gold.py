@@ -1,7 +1,6 @@
-import psycopg
-import pytest
 from datetime import datetime, timezone
 
+import pytest
 from pipeline.load.gold import save_transformed_records
 
 
