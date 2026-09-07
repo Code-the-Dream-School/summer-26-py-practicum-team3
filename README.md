@@ -1,38 +1,110 @@
 # City Air Tracker
 
-This repo contains a Code the Dream-friendly batch ETL project that:
+A batch ETL pipeline and dashboard for city air quality, built by Team 3 for the
+Code the Dream Python practicum.
 
-1. Geocodes global cities to lat/lon
-2. Pulls OpenWeather Air Pollution historical data
-3. Transforms PostgreSQL-backed raw response records into a gold dataset
-4. Writes the gold dataset to PostgreSQL
-5. Serves a React dashboard backed by a Python API over PostgreSQL data
+The pipeline geocodes a configured list of cities, pulls historical air-pollution
+readings from the OpenWeather API, normalizes them into a gold dataset in
+PostgreSQL, and records every run. A Streamlit dashboard reads that data and shows
+current conditions per city and how they change over time.
 
-The pipeline uses DB-first gold persistence by default, with PostgreSQL as the primary gold-data target
-City configuration, geocoding cache, and raw extract persistence are in PostgreSQL as runtime state.
-The same PostgreSQL runtime path can target either local Docker/Postgres or managed Azure Database for PostgreSQL through environment configuration.
+**Stack:** Python 3.12 · PostgreSQL (Alembic migrations) · psycopg 3 · pandas ·
+Streamlit · GitHub Actions for scheduling and CI.
 
-## Team repository setup (Sprint 0)
+## Quick start
 
-One student should complete the initial setup below. These instructions follow the repository setup used in the Code the Dream Python 100 homework repository.
-
-1. Sign into your GitHub, and create a repository for your team's City Air Tracker project. It must be a public repository. Do not create a `.gitignore` or a `README.md`.
-2. On your computer, clone the [`city-air-tracker-student`](https://github.com/Code-the-Dream-School/city-air-tracker-student) repository. (Do not clone the repository you just created.)
-3. Change to the `city-air-tracker-student` directory you just cloned. Enter the following commands, replacing `team-repository-owner` and `team-repository-name` with the values for the repository your team created:
+Requires Python 3.12+, a running PostgreSQL server, and an OpenWeather API key.
 
 ```shell
-# if you use SSH authentication:
+python -m venv services/pipeline/venv
+source services/pipeline/venv/bin/activate
+pip install -r requirements.txt
+
+cp .env.example services/pipeline/.env      # fill in OPENWEATHER_API_KEY and DATABASE_URL
+createdb city_air_tracker
+
+cd services/pipeline
+alembic upgrade head                        # create the tables
+python run_pipeline.py run                  # fetch and load data
+PYTHONPATH=src streamlit run src/dashboard/app.py
+```
+
+The dashboard opens at http://localhost:8501.
+
+Note that the `.env` that is actually read lives in `services/pipeline/`, not at the
+repository root — every command above is run from `services/pipeline`.
+
+## Command-line tools
+
+Run from `services/pipeline`:
+
+| Command | What it does |
+| --- | --- |
+| `python run_pipeline.py run` | Run the pipeline end to end |
+| `python run_pipeline.py runs` | Show recent run history |
+| `python run_pipeline.py db` | Connection status and per-table row counts |
+| `python run_pipeline.py replay --run-id <id>` | Re-run transform and load from stored raw responses, without calling the API |
+| `python src/pipeline/scheduler.py` | The entrypoint used by the scheduled workflow |
+
+## Repository layout
+
+```
+services/pipeline/
+  src/pipeline/        extract, transform, load, orchestration, CLI, scheduler
+  src/dashboard/       Streamlit app, pages, queries, formatting helpers
+  alembic/             database migrations
+  config/cities.json   the list of cities to process
+  tests/               pytest suite
+docs/                  architecture, setup and reference documentation
+requirements.txt       dependencies for the whole project
+```
+
+## Documentation
+
+**[`docs/handoff.md`](docs/handoff.md)** is the place to start: what was built, every
+runtime setting, a step-by-step local walkthrough, and what is still unfinished.
+
+[`docs/README.md`](docs/README.md) is the full index of the rest.
+
+## Testing
+
+```shell
+cd services/pipeline
+python -m pytest tests
+```
+
+Tests that need a real database are skipped unless `TEST_DATABASE_URL` is set.
+
+---
+
+<details>
+<summary>Team repository setup (Sprint 0, historical)</summary>
+
+These are the Code the Dream instructions the team followed to create this
+repository. They are kept for reference and are not needed to run the project.
+
+One student completed the setup below.
+
+1. Sign into GitHub and create a public repository for the team's City Air Tracker
+   project. Do not create a `.gitignore` or a `README.md`.
+2. Clone the [`city-air-tracker-student`](https://github.com/Code-the-Dream-School/city-air-tracker-student)
+   repository — not the repository you just created.
+3. From the `city-air-tracker-student` directory, repoint the remotes, replacing
+   `team-repository-owner` and `team-repository-name`:
+
+```shell
+# SSH authentication:
 git remote set-url origin git@github.com:team-repository-owner/team-repository-name.git
 
-# if you use token-based authentication:
+# token-based authentication:
 git remote set-url origin https://github.com/team-repository-owner/team-repository-name
 
 git remote add upstream https://github.com/Code-the-Dream-School/city-air-tracker-student
 git push origin main
 ```
 
-4. In the team's new GitHub repository, add every student and mentor on the team as a collaborator.
-5. All other team members should clone the new team repository:
+4. Add every student and mentor on the team as a collaborator.
+5. Everyone else clones the team repository:
 
 ```shell
 git clone https://github.com/team-repository-owner/team-repository-name.git
@@ -40,28 +112,7 @@ cd team-repository-name
 git remote add upstream https://github.com/Code-the-Dream-School/city-air-tracker-student
 ```
 
-Each team member can confirm both remotes with:
+`git remote -v` should show `origin` pointing at the team repository and `upstream`
+at the Code the Dream starter.
 
-```shell
-git remote -v
-```
-
-`origin` should point to the team's repository. `upstream` should point to the Code the Dream starter repository.
-
-## Additional docs
-
-Browse `docs/README.md` for the full categorized index.
-
-- `docs/milestones/week0.md`
-- `docs/milestones/week1.md`
-- `docs/setup/local_postgresql_first_workflow.md`
-- `docs/setup/run_and_debug_guide.md`
-- `docs/setup/github_quality_gates_setup.md`
-- `docs/collaboration/github_feature_branch_pr_guide.md`
-- `docs/collaboration/pr_review_best_practices.md`
-- `docs/collaboration/what_is_a_data_pipeline.md`
-- `docs/architecture/architecture.md`
-- `docs/architecture/data_flow_diagram.md`
-- `docs/architecture/postgresql_schema_design.md`
-- `docs/reference/data_dictionary.md`
-- `docs/reference/openweather_environmental_api_fields_reference.md`
+</details>
