@@ -39,7 +39,7 @@ def main() -> int:
         extra={
             "run_id": result.run_id,
             "pipeline_run_id": result.pipeline_run_id,
-            "gold_row_count": result.gold_row_count,
+            "gold_row_count": result.rows,
             "postgres_table": result.postgres_table,
         },
     )
