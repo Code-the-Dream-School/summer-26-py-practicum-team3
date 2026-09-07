@@ -29,7 +29,7 @@ CITY = City(
 )
 
 
-def _fake_geocode_city(*, city, country_code, state, raw_dir):
+def _fake_geocode_city(*, city, country_code, state, raw_dir, run_id=None, pipeline_run_id=None):
     return Coordinates(
         lat=30.2672,
         lon=-97.7431,
