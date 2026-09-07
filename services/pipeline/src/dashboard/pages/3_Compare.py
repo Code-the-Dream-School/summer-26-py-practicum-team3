@@ -5,7 +5,7 @@ import pandas as pd
 import psycopg
 import streamlit as st
 
-from dashboard.app import init_connection
+from dashboard.db import init_connection
 from dashboard.queries import list_cities, get_cities_comparison
 
 from dashboard.format_data import (
@@ -155,7 +155,6 @@ def render_compare():
             columns={"city_label": "City", "Value": metric_label}
         ),
         hide_index=True,
-        width="stretch",
     )
 
 if __name__ == "__main__":
