@@ -1,8 +1,8 @@
 from pipeline.load.upsert import (
-    AIR_QUALITY_UPSERT_SQL,
     upsert_air_quality_record,
     upsert_air_quality_records,
 )
+
 
 def make_record(**overrides):
     record = {

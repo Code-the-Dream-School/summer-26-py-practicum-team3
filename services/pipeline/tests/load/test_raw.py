@@ -1,12 +1,10 @@
-import psycopg
-import pytest
 from datetime import datetime, timezone
 
+import pytest
 from pipeline.load.raw import (
-    save_raw_geocoding_response,
     save_raw_air_pollution_response,
+    save_raw_geocoding_response,
 )
-
 
 # --- Raw geocoding tests ---
 

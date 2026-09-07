@@ -4,7 +4,6 @@ import psycopg
 from alembic import command
 from alembic.config import Config
 
-
 TABLES = {
     "cities",
     "pipeline_runs",
@@ -15,16 +14,15 @@ TABLES = {
 
 
 def _list_tables(setup_test_database: str) -> set[str]:
-    with psycopg.connect(setup_test_database) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
+    with psycopg.connect(setup_test_database) as conn, conn.cursor() as cur:
+        cur.execute(
+            """
                 SELECT table_name
                 FROM information_schema.tables
                 WHERE table_schema = 'public';
                 """
-            )
-            return {row[0] for row in cur.fetchall()}
+        )
+        return {row[0] for row in cur.fetchall()}
 
 
 def test_migration_bootstrap_upgrade_downgrade_cycle(setup_test_database: str, pytestconfig) -> None:

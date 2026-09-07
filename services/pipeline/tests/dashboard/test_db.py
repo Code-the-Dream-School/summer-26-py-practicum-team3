@@ -6,7 +6,7 @@ import pytest
 from pydantic import SecretStr
 
 from dashboard import db
-from dashboard.db import _to_psycopg_dsn
+from pipeline.common.db import normalize_dsn
 
 
 @pytest.mark.parametrize(
@@ -22,7 +22,7 @@ from dashboard.db import _to_psycopg_dsn
         ),
         (
             "postgres+psycopg://user@host/db",
-            "postgres://user@host/db",
+            "postgresql://user@host/db",
         ),
         (
             # Already in the plain form psycopg expects - passes through unchanged.
@@ -31,14 +31,14 @@ from dashboard.db import _to_psycopg_dsn
         ),
     ],
 )
-def test_to_psycopg_dsn_strips_sqlalchemy_driver_suffix(database_url: str, expected: str) -> None:
+def test_normalize_dsn_strips_sqlalchemy_driver_suffix(database_url: str, expected: str) -> None:
     """DATABASE_URL is documented/used elsewhere (alembic/env.py via SQLAlchemy) in
     the "dialect+driver" form (e.g. postgresql+psycopg://...), but raw
     psycopg.connect() only understands postgresql:// / postgres:// and raises a
     confusing 'missing "=" ... in connection info string' error on the +driver
     suffix. This normalization lets both consumers share one DATABASE_URL value.
     """
-    assert _to_psycopg_dsn(database_url) == expected
+    assert normalize_dsn(database_url) == expected
 
 
 def test_get_connection_unwraps_the_secret_and_normalizes_the_dsn(monkeypatch) -> None:

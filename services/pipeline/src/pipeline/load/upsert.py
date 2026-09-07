@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 AIR_QUALITY_UPSERT_SQL = """
 INSERT INTO air_pollution_gold (
