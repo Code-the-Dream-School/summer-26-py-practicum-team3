@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
+
 import psycopg
 
 from pipeline.load.upsert import upsert_air_quality_records
-
 
 # Pollutants and state_code are excluded, since they are optional.
 GOLD_REQUIRED = (

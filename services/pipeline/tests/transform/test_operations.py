@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-import pytest
 
+import pytest
 from pipeline.transform.operations import (
     aqi_label,
     build_air_quality_record,
@@ -17,7 +17,6 @@ from pipeline.transform.operations import (
     normalize_text,
     unix_to_utc_datetime,
 )
-
 
 # ============================================================================
 # 1. Timestamp Normalization Tests
