@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+import psycopg
 
 from pipeline.common.logging import get_logger
 from pipeline.extract.cities import City
@@ -52,6 +53,7 @@ def run_pipeline(
     source: str,
     history_hours: int,
     table_name: str = DEFAULT_TABLE_NAME,
+    conn: psycopg.Connection | None = None,
     *,
     extract: ExtractStage,
     transform: TransformStage,
@@ -76,6 +78,7 @@ def run_pipeline(
             end=end,
             run_id=run_id,
             pipeline_run_id=pipeline_run_id,
+            conn=conn,
         )
     except Exception:
         log.error(
@@ -129,6 +132,7 @@ def run_pipeline(
             gold_dir=gold_dir,
             run_id=run_id,
             table_name=table_name,
+            conn=conn,
         )
     except Exception:
         log.error(

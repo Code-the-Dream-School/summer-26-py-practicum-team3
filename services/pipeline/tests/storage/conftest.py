@@ -3,12 +3,11 @@ from pathlib import Path
 
 import psycopg
 import pytest
-
 from alembic import command
 from alembic.config import Config
-
+from dotenv import find_dotenv, load_dotenv
 from sqlalchemy.engine import make_url
-from dotenv import load_dotenv, find_dotenv
+
 load_dotenv(dotenv_path="services/pipeline/.env")
 
 # Debug info if env vars are missing
