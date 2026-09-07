@@ -8,8 +8,12 @@ import streamlit as st
 from dashboard.app import init_connection
 from dashboard.queries import list_cities, get_cities_comparison
 
-
-STALE_THRESHOLD = timedelta(hours=3)
+from dashboard.format_data import (
+    format_relative_time,
+    is_stale,
+    aqi_display,
+    city_label,
+)
 
 # Maps a friendly label -> the underlying column returned by get_cities_comparison.
 POLLUTANT_OPTIONS = {
@@ -20,40 +24,9 @@ POLLUTANT_OPTIONS = {
     "NO2 (μg/m³)": "no2",
     "O3 (μg/m³)": "o3",
     "SO2 (μg/m³)": "so2",
+    "NH3 (μg/m³)": "nh3",
+    "NO (μg/m³)": "no",
 }
-
-
-AQI_COLORS = {
-    1: ("Good", "🟢"),
-    2: ("Fair", "🟡"),
-    3: ("Moderate", "🟠"),
-    4: ("Poor", "🔴"),
-    5: ("Very Poor", "🟣"),
-}
-
-
-def format_relative_time(dt: datetime) -> str:
-    """Format datetime into a readable relative string."""
-    now = datetime.now(timezone.utc)
-    diff = now - dt
-    minutes = int(diff.total_seconds() / 60)
-
-    if minutes < 60:
-        return f"{minutes}m ago"
-    hours = minutes // 60
-    return f"{hours}h ago"
-
-
-def _city_label(row: dict) -> str:
-    """Build a display label consistent with 1_Summary.py's location formatting."""
-    state_code = row.get("state_code")
-    is_missing = (
-        state_code is None
-        or pd.isna(state_code)
-        or str(state_code).strip().lower() == "null"
-    )
-    state = f", {state_code}" if not is_missing else ""
-    return f"{row['city_name']} ({row['country_code']}{state})"
 
 
 def render_compare():
@@ -83,7 +56,7 @@ def render_compare():
         return
 
     # city_id is a string identifier (e.g. 'berlin-de'), not a surrogate int.
-    label_to_id = {_city_label(row): row["city_id"] for row in cities}
+    label_to_id = {city_label(row): row["city_id"] for row in cities}
     labels = sorted(label_to_id.keys())
 
     col1, col2, col3 = st.columns([2, 1, 1])
@@ -130,7 +103,7 @@ def render_compare():
         return
 
     df = pd.DataFrame(history)
-    df["city_label"] = df.apply(_city_label, axis=1)
+    df["city_label"] = df.apply(city_label, axis=1)
 
     now = datetime.now(timezone.utc)
 
@@ -147,7 +120,10 @@ def render_compare():
         .tail(1)
         .set_index("city_label")
     )
-    stale_cities = [label for label, ts in latest_per_city["observed_at"].items() if (end - ts) > STALE_THRESHOLD]
+    stale_cities = [
+        label for label, ts in latest_per_city["observed_at"].items()
+        if is_stale(ts, now=now)
+    ]
     if stale_cities:
         st.warning(f"⚠️ Data may be stale for: {', '.join(stale_cities)} (no reading in the last 3h).")
 
@@ -161,13 +137,12 @@ def render_compare():
     snapshot = latest_per_city.sort_values(metric_col, ascending=False).reset_index()
 
     def _status_text(observed_at):
-        is_stale = (now - observed_at) > STALE_THRESHOLD
-        prefix = "⚠️ Stale" if is_stale else "🕒 Updated"
+        prefix = "⚠️ Stale" if is_stale(observed_at, now=now) else "🕒 Updated"
         return f"{prefix} ({format_relative_time(observed_at)})"
 
     def _value_text(row):
         if is_aqi_metric:
-            label_text, icon = AQI_COLORS.get(row["aqi"], (row.get("aqi_label", "Unknown"), "⚪"))
+            label_text, icon = aqi_display(row["aqi"], row.get("aqi_label"))
             return f"{icon} {label_text}"
         return row[metric_col]
 
@@ -177,7 +152,7 @@ def render_compare():
     display_cols = ["city_label", "Status", "Value"]
     st.dataframe(
         snapshot[display_cols].rename(
-            columns = {"city_label": "City", "Value": metric_label}
+            columns={"city_label": "City", "Value": metric_label}
         ),
         hide_index=True,
         width="stretch",
