@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import re
 from pathlib import Path
 from typing import Literal
@@ -9,8 +8,9 @@ import requests
 from pydantic import BaseModel, ValidationError
 
 from pipeline.common.config import settings
+from pipeline.common.logging import get_logger
 
-logger = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 GEOCODING_URL = "https://api.openweathermap.org/geo/1.0/direct"
 
@@ -75,6 +75,8 @@ def geocode_city(
     country_code: str,
     state: str | None = None,
     raw_dir: Path | None = None,
+    run_id: str | None = None,
+    pipeline_run_id: int | None = None,
 ) -> Coordinates | None:
     """Resolve a city's coordinates using the geocoding API and fallbacks.
 
@@ -84,6 +86,8 @@ def geocode_city(
         state: Optional state or region used to narrow the geocoding query.
         raw_dir: Optional directory where the raw geocoding API response
             is saved.
+        run_id: Optional identifier for the current pipeline run.
+        pipeline_run_id: Optional database identifier for the pipeline run.
 
     Returns:
         A Coordinates object with the source set to "geocoded" or "fallback",
@@ -93,8 +97,14 @@ def geocode_city(
     api_key = settings.openweather_api_key.get_secret_value().strip()
 
     if not api_key:
-        logger.warning(
-            "OpenWeather API key is not configured; skipping geocoding API request."
+        log.warning(
+            "OpenWeather API key is not configured; skipping geocoding API request.",
+            extra={
+                "city": city,
+                "country_code": country_code,
+                "run_id": run_id,
+                "pipeline_run_id": pipeline_run_id
+            }
         )
 
         fallback = _get_fallback_coordinates(
@@ -132,11 +142,17 @@ def geocode_city(
         )
 
         if response.status_code != 200:
-            logger.warning(
+            log.warning(
                 "Geocoding API request failed for %s, %s: HTTP %s",
                 city,
                 country_code,
                 response.status_code,
+                extra={
+                    "city": city,
+                    "country_code": country_code,
+                    "run_id": run_id,
+                    "pipeline_run_id": pipeline_run_id
+                }
             )
         else:
             results = response.json()
@@ -150,10 +166,16 @@ def geocode_city(
                     source="geocoded",
                 )
 
-            logger.warning(
+            log.warning(
                 "Geocoding API returned no results for %s, %s.",
                 city,
                 country_code,
+                extra={
+                    "city": city,
+                    "country_code": country_code,
+                    "run_id": run_id,
+                    "pipeline_run_id": pipeline_run_id
+                }
             )
 
     except (
@@ -162,11 +184,17 @@ def geocode_city(
         KeyError,
         ValidationError,
     ) as exc:
-        logger.warning(
+        log.warning(
             "Geocoding API request failed for %s, %s: %s",
             city,
             country_code,
             exc,
+            extra={
+                "city": city,
+                "country_code": country_code,
+                "run_id": run_id,
+                "pipeline_run_id": pipeline_run_id
+            }
         )
 
     fallback = _get_fallback_coordinates(
@@ -176,10 +204,16 @@ def geocode_city(
     )
 
     if fallback is not None:
-        logger.warning(
+        log.warning(
             "Using fallback coordinates for %s, %s.",
             city,
             country_code,
+            extra={
+                "city": city,
+                "country_code": country_code,
+                "run_id": run_id,
+                "pipeline_run_id": pipeline_run_id
+            }
         )
 
         return Coordinates(
@@ -188,10 +222,16 @@ def geocode_city(
             source="fallback",
         )
 
-    logger.warning(
+    log.warning(
         "No coordinates found for %s, %s.",
         city,
         country_code,
+        extra={
+            "city": city,
+            "country_code": country_code,
+            "run_id": run_id,
+            "pipeline_run_id": pipeline_run_id
+        }
     )
 
     return None

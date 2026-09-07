@@ -3,6 +3,9 @@ from __future__ import annotations
 import json
 
 import pytest
+
+from pipeline.common.logging import ContextFormatter
+from pipeline.extract.cities import log as cities_log
 from pipeline.extract.cities import read_cities
 
 
@@ -191,3 +194,19 @@ def test_read_cities_raises_for_non_list_json(tmp_path):
 
     with pytest.raises(ValueError, match="JSON list"):
         read_cities(path)
+
+
+def test_cities_logger_uses_shared_context_formatter():
+    """
+    Verifies that the module-level logger goes through the shared get_logger()
+    helper and is configured with ContextFormatter, instead of falling back
+    to a raw stdlib logging.getLogger() with no formatter attached.
+    """
+    handlers = cities_log.handlers
+    assert len(handlers) > 0, "Logger should have at least one handler attached"
+    
+    # Verify that at least one handler uses the required formatter
+    has_context_formatter = any(
+        isinstance(h.formatter, ContextFormatter) for h in handlers
+    )
+    assert has_context_formatter, "Logger must use ContextFormatter to preserve extraction context"

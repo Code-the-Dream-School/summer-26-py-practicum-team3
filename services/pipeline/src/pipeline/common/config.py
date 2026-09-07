@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     cities_source: str = "file"
     cities_file: str = "config/cities.json"
 
+    log_level: str = "INFO"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
