@@ -9,7 +9,7 @@ from pipeline.orchestration import run_pipeline_job, run_replay_job
 from pydantic import SecretStr
 
 
-def _fake_geocode_city(*, city, country_code, state, raw_dir):
+def _fake_geocode_city(*, city, country_code, state, raw_dir, run_id=None, pipeline_run_id=None):
     from pipeline.extract.geocoding import Coordinates
 
     return Coordinates(
